@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
 	<QtExportAs>metadata</QtExportAs>
@@ -36,8 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Maestro.Application\Maestro.Application.csproj" />
-    <ProjectReference Include="..\Maestro.Infrastructure\Maestro.Infrastructure.csproj" />
+    <ProjectReference Include="..\Maestro.Core\Maestro.Core.csproj" />
   </ItemGroup>
 
 </Project>

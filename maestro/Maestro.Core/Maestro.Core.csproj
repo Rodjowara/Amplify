@@ -16,10 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Maestro.Application\Maestro.Application.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="Protos\" />
   </ItemGroup>
 
