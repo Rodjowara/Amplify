@@ -5,8 +5,10 @@ name: Rust
 on:
   push:
     branches: [ "dev" ]
+    paths: [ "amp/**", "shared/**", ".github/workflows/rust.yml" ]
   pull_request:
     branches: [ "dev" ]
+    paths: [ "amp/**", "shared/**", ".github/workflows/rust.yml" ]
 
 jobs:
   build:
@@ -24,6 +26,7 @@ jobs:
     - uses: jurplel/install-qt-action@v4
       with:
         version: 6.12.0
+        cache: true
     - name: Put qmake on PATH
       run: echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
     - uses: dtolnay/rust-toolchain@stable
