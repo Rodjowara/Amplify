@@ -6,8 +6,10 @@ name: .NET
 on:
   push:
     branches: [ "dev" ]
+    paths: [ "maestro/**", "shared/**", ".github/workflows/dotnet.yml" ]
   pull_request:
     branches: [ "dev" ]
+    paths: [ "maestro/**", "shared/**", ".github/workflows/dotnet.yml" ]
 
 jobs:
   build:
