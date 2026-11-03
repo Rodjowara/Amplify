@@ -22,7 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(QtBridgeTemplateRid)' == 'win-x64'&#xD;&#xA;                    or '$(QtBridgeTemplateRid)' == 'win-arm64'&#xD;&#xA;                    or '$(QtBridgeTemplateRid)' == 'linux-x64'&#xD;&#xA;                    or '$(QtBridgeTemplateRid)' == 'osx-x64'&#xD;&#xA;                    or '$(QtBridgeTemplateRid)' == 'osx-arm64'">
-    <PackageReference Include="$(QtBridgePackageId)" Version="0.4.*-*" />
+    <PackageReference Include="$(QtBridgePackageId)" Version="0.5.0" />
   </ItemGroup>
 
   <Target Name="EnsureSupportedQtBridgePlatform" BeforeTargets="Restore;Build" Condition="'$(QtBridgeTemplateRid)' != 'win-x64'&#xD;&#xA;                  and '$(QtBridgeTemplateRid)' != 'win-arm64'&#xD;&#xA;                  and '$(QtBridgeTemplateRid)' != 'linux-x64'&#xD;&#xA;                  and '$(QtBridgeTemplateRid)' != 'osx-x64'&#xD;&#xA;                  and '$(QtBridgeTemplateRid)' != 'osx-arm64'">
