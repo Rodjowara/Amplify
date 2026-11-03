@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package amplify.amp;
+
+option csharp_namespace = "Amplify.Amp";
+
+// Control API of one amp. The amp is the server, Maestro is the client.
+// Kept to what sprint 2 needs; more RPCs get added as features come up.
+service AmpService {
+  rpc GetState (GetStateRequest) returns (AmpState);
+
+  // Tells the amp where Maestro's snapserver is, so it can start playing the stream.
+  rpc SetStream (SetStreamRequest) returns (AmpState);
+}
+
+message StreamInfo {
+  string host = 1;
+  uint32 port = 2;
+}
+
+message AmpState {
+  string name = 1;
+  StreamInfo stream = 2;
+}
+
+message GetStateRequest {}
+
+message SetStreamRequest {
+  StreamInfo stream = 1;
+}
