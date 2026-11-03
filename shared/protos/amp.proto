@@ -5,33 +5,12 @@ package amplify.amp;
 option csharp_namespace = "Amplify.Amp";
 
 // Control API of one amp. The amp is the server, Maestro is the client.
-// Every setter returns the full new state, so the caller always sees what the amp applied.
+// Kept to what sprint 2 needs; more RPCs get added as features come up.
 service AmpService {
   rpc GetState (GetStateRequest) returns (AmpState);
 
-  // Sends the current state right away, then again every time it changes
-  // (from Maestro or from the amp's touchscreen). Used for two-way sync.
-  rpc WatchState (WatchStateRequest) returns (stream AmpState);
-
-  rpc SetName (SetNameRequest) returns (AmpState);
-  rpc SetChannels (SetChannelsRequest) returns (AmpState);
-  rpc SetVolume (SetVolumeRequest) returns (AmpState);
-  rpc SetMasterVolume (SetMasterVolumeRequest) returns (AmpState);
-  rpc SetMute (SetMuteRequest) returns (AmpState);
-  rpc SetSolo (SetSoloRequest) returns (AmpState);
-  rpc SetDelay (SetDelayRequest) returns (AmpState);
-  rpc SetCrossover (SetCrossoverRequest) returns (AmpState);
-  rpc SetEqBand (SetEqBandRequest) returns (AmpState);
-
   // Tells the amp where Maestro's snapserver is, so it can start playing the stream.
   rpc SetStream (SetStreamRequest) returns (AmpState);
-}
-
-enum AudioChannel {
-  AUDIO_CHANNEL_UNSPECIFIED = 0;
-  AUDIO_CHANNEL_LEFT = 1;
-  AUDIO_CHANNEL_RIGHT = 2;
-  AUDIO_CHANNEL_WOOFER = 3;
 }
 
 message StreamInfo {
@@ -41,66 +20,10 @@ message StreamInfo {
 
 message AmpState {
   string name = 1;
-  repeated AudioChannel channels = 2;
-
-  // 0.0 - 1.0. The amp plays at volume * master_volume.
-  float volume = 3;
-  float master_volume = 4;
-
-  bool muted = 5;
-  bool solo = 6;
-
-  float delay_ms = 7;
-  bool phase_inverted = 8;
-  float crossover_hz = 9;
-
-  // 10 bands: 31, 62, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz.
-  repeated float eq_gains_db = 10;
-
-  StreamInfo stream = 11;
+  StreamInfo stream = 2;
 }
 
 message GetStateRequest {}
-
-message WatchStateRequest {}
-
-message SetNameRequest {
-  string name = 1;
-}
-
-message SetChannelsRequest {
-  repeated AudioChannel channels = 1;
-}
-
-message SetVolumeRequest {
-  float volume = 1;
-}
-
-message SetMasterVolumeRequest {
-  float master_volume = 1;
-}
-
-message SetMuteRequest {
-  bool muted = 1;
-}
-
-message SetSoloRequest {
-  bool solo = 1;
-}
-
-message SetDelayRequest {
-  float delay_ms = 1;
-  bool phase_inverted = 2;
-}
-
-message SetCrossoverRequest {
-  float crossover_hz = 1;
-}
-
-message SetEqBandRequest {
-  uint32 band = 1;
-  float gain_db = 2;
-}
 
 message SetStreamRequest {
   StreamInfo stream = 1;
