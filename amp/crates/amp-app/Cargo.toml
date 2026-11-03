@@ -1,0 +1,7 @@
+[package]
+name = "amp-app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+amp-ui = { path = "../amp-ui" }
