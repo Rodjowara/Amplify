@@ -14,6 +14,9 @@
     <Protobuf Include="..\..\shared\protos\dummy.proto" GrpcServices="Server">
       <Link>Protos\dummy.proto</Link>
     </Protobuf>
+    <Protobuf Include="..\..\shared\protos\amp.proto" GrpcServices="Server">
+      <Link>Protos\amp.proto</Link>
+    </Protobuf>
   </ItemGroup>
 
 </Project>
