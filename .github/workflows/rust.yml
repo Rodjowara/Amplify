@@ -1,0 +1,36 @@
+# This workflow will build the Rust (amp) project
+
+name: Rust
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: amp
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install system libraries
+      run: sudo apt-get update && sudo apt-get install -y libgl-dev libxkbcommon-dev
+    - uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.12.0
+    - name: Put qmake on PATH
+      run: echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: amp
+    - name: Build
+      run: cargo build --verbose
+    - name: Test
+      run: cargo test --verbose
