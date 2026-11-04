@@ -1,0 +1,13 @@
+[package]
+name = "amp-control"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tonic = "0.14"
+tonic-prost = "0.14"
+prost = "0.14"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+
+[build-dependencies]
+tonic-prost-build = "0.14"
