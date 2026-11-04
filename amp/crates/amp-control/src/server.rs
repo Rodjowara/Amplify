@@ -3,12 +3,16 @@ use std::thread::{self, JoinHandle};
 
 use tonic::transport::Server;
 
+use crate::amp_handler::AmpHandler;
 use crate::handlers::DummyHandler;
-use crate::proto::dummy_service_server::DummyServiceServer;
+use crate::proto::amp::amp_service_server::AmpServiceServer;
+use crate::proto::dummy::dummy_service_server::DummyServiceServer;
 
 pub async fn serve(addr: SocketAddr) -> Result<(), tonic::transport::Error> {
     Server::builder()
         .add_service(DummyServiceServer::new(DummyHandler))
+            //Amp is a temporary name for the device
+        .add_service(AmpServiceServer::new(AmpHandler::new("Amp")))
         .serve(addr)
         .await
 }

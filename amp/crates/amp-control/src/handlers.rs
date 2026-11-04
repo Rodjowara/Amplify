@@ -1,6 +1,6 @@
 use tonic::{Request, Response, Status};
 
-use crate::proto::{dummy_service_server::DummyService, PingRequest, PingResponse};
+use crate::proto::dummy::{dummy_service_server::DummyService, PingRequest, PingResponse};
 
 #[derive(Debug, Default)]
 pub struct DummyHandler;
