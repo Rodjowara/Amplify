@@ -1,4 +1,4 @@
-use amp_control::proto::{dummy_service_client::DummyServiceClient, PingRequest};
+use amp_control::proto::dummy::{dummy_service_client::DummyServiceClient, PingRequest};
 
 #[tokio::test]
 async fn ping_returns_pong() {
