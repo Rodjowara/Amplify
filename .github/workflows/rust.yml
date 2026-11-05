@@ -22,7 +22,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install system libraries
-      run: sudo apt-get update && sudo apt-get install -y libgl-dev libxkbcommon-dev protobuf-compiler
+      run: sudo apt-get update && sudo apt-get install -y libgl-dev libxkbcommon-dev protobuf-compiler libasound2-dev
     - uses: jurplel/install-qt-action@v4
       with:
         version: 6.12.0
