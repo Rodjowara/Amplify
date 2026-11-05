@@ -6,7 +6,7 @@ import Amplify
 ApplicationWindow {
     id: win
     visible: true
-    title: "Qt Bridge for C#"
+    title: "Maestro"
     width: 365; height: 510
     color: Theme.colors.background
 
@@ -20,53 +20,42 @@ ApplicationWindow {
         spacing: Theme.spacing.large
 
         Label {
-            text: "Hello, World!"
+            text: "Maestro"
             font.pixelSize: Theme.fontSize.title
             color: Theme.colors.text
-            horizontalAlignment: Text.AlignHCenter
             Layout.alignment: Qt.AlignHCenter
         }
 
         ColumnLayout {
-            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignHCenter
             spacing: Theme.spacing.small
+
+            AmplifyPlayPauseButton {
+                playing: dummy.playing
+                onPlayingChanged: dummy.playing = playing
+                Layout.alignment: Qt.AlignHCenter
+            }
+
             Label {
-                text: "Welcome to Qt Bridge for C#"
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: Theme.fontSize.large
+                text: dummy.playing ? "Playing" : "Paused"
+                font.pixelSize: Theme.fontSize.small
                 color: Theme.colors.textMuted
-            }
-
-            Label {
-                text: "QML Multi-language App UI"
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: Theme.fontSize.large
-                color: Theme.colors.text
-                wrapMode: Text.WordWrap
+                Layout.alignment: Qt.AlignHCenter
             }
         }
 
-        AmplifyButton {
-            text: dummy.clicks === 0 ? "Click me" : "Clicked " + dummy.clicks + " times"
-            Layout.fillWidth: true
-            onClicked: dummy.clicks += 1
-        }
+        Item { Layout.fillHeight: true }
 
         AmplifyButton {
-            text: "Ping"
+            text: "Send gRPC message"
             Layout.fillWidth: true
             onClicked: dummy.ping()
         }
 
-        AmplifyPlayPauseButton {
-            Layout.alignment: Qt.AlignHCenter
-        }
-
         Label {
-            text: dummy.pingResponse
-            color: Theme.colors.text
+            text: dummy.pingResponse !== "" ? dummy.pingResponse : "No response yet"
+            color: dummy.pingResponse !== "" ? Theme.colors.text : Theme.colors.textMuted
+            font.pixelSize: Theme.fontSize.normal
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
