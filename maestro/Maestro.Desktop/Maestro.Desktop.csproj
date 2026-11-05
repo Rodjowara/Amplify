@@ -39,4 +39,45 @@
     <ProjectReference Include="..\Maestro.Core\Maestro.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Amplify\icons\*.svg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Qt Bridge writes qmldir without the "singleton" keyword, so QML files with
+    "pragma Singleton" (Theme, Icons) come out undefined. Add the keyword after build.
+  -->
+  <UsingTask TaskName="MarkQmlSingletons" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <OutputDir ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+foreach (var qmldir in Directory.GetFiles(OutputDir, "qmldir", SearchOption.AllDirectories))
+{
+    var dir = Path.GetDirectoryName(qmldir);
+    var lines = File.ReadAllLines(qmldir).Select(line =>
+    {
+        var parts = line.Split(' ');
+        var isQmlType = parts.Length == 3 && parts[2].EndsWith(".qml");
+        if (!isQmlType)
+            return line;
+        var file = Path.Combine(dir, parts[2]);
+        return File.Exists(file) && File.ReadLines(file).Any(l => l.Trim() == "pragma Singleton")
+            ? "singleton " + line
+            : line;
+    }).ToArray();
+    File.WriteAllLines(qmldir, lines);
+}
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="MarkQmlSingletons" AfterTargets="Build">
+    <MarkQmlSingletons OutputDir="$(OutDir)" />
+  </Target>
+
 </Project>
