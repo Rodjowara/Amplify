@@ -76,6 +76,7 @@ dependencies = [
 name = "amp-control"
 version = "0.1.0"
 dependencies = [
+ "amp-audio",
  "prost",
  "tokio",
  "tonic",
