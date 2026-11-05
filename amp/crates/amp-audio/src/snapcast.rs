@@ -45,7 +45,7 @@ pub struct SnapcastClientHandle {
     pub command_tx: mpsc::Sender<ClientCommand>,
     pub time_provider: Arc<Mutex<TimeProvider>>,
     pub stream: Arc<Mutex<Stream>>,
-    task: JoinHandle<anyhow::Result<()>>,
+    task: Mutex<Option<JoinHandle<anyhow::Result<()>>>>,
 }
 
 impl SnapcastClientHandle {
@@ -72,7 +72,7 @@ impl SnapcastClientHandle {
             command_tx,
             time_provider,
             stream,
-            task,
+            task: Mutex::new(Some(task)),
         }
     }
 
@@ -146,8 +146,69 @@ impl SnapcastClientHandle {
     }
 
     /// Gracefully stop the Snapcast client and wait for its background task to finish.
-    pub async fn stop(self) {
+    pub async fn stop(&self) {
         let _ = self.command_tx.send(ClientCommand::Stop).await;
-        let _ = self.task.await;
+        let task = self.task.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some(t) = task {
+            let _ = t.await;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snapcast_server::{ServerConfig, SnapServer};
+    use std::time::Duration;
+    use tokio::net::TcpListener;
+
+    #[test]
+    fn default_config_uses_standard_port() {
+        let cfg = SnapcastStreamConfig::default();
+        assert_eq!(cfg.host, "127.0.0.1");
+        assert_eq!(cfg.port, 1704);
+    }
+
+    #[tokio::test]
+    async fn client_connects_and_receives_flac_chunks_from_server() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let (mut server, _events) = SnapServer::new(ServerConfig {
+            buffer_ms: 200,
+            ..ServerConfig::default()
+        });
+        let mut sender = server.add_f32_stream("default").unwrap();
+
+        tokio::spawn(async move {
+            let _ = server.serve(listener).await;
+        });
+
+        tokio::spawn(async move {
+            let chunk = vec![0.25f32; 960 * 2];
+            for _ in 0..20 {
+                if sender.send(&chunk).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let mut client = SnapcastClientHandle::spawn(SnapcastStreamConfig {
+            host: "127.0.0.1".into(),
+            port,
+            client_name: "Test-Amp".into(),
+            instance: 1,
+        });
+
+        let frame = tokio::time::timeout(Duration::from_secs(3), client.audio_rx.recv())
+            .await
+            .expect("timed out waiting for audio frame")
+            .expect("audio channel closed");
+
+        assert_eq!(frame.sample_rate, 48_000);
+        assert_eq!(frame.channels, 2);
+        assert!(!frame.samples.is_empty());
+
+        client.stop().await;
     }
 }

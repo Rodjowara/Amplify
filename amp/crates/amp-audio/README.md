@@ -12,14 +12,15 @@ In **Amplify**, Spotify can only stream to a single active Spotify Connect devic
 
 ```mermaid
 flowchart LR
+    GRPC["amp-control\n(gRPC SetStream)"] -->|"set_stream(host, port)"| CHAIN["chain.rs\n(AudioPipeline)"]
     SS["Maestro snapserver\n(TCP :1704)"] --> SC["snapcast.rs\n(SnapcastClientHandle)"]
-    SC -->|"Interleaved f32 PCM\n(time-synced)"| DSP["chain.rs\n(fundsp: Channel, Crossover, EQ, Delay, Volume)"]
-    DSP -->|"Processed f32"| CPAL["cpal\n(ALSA / OS Audio Output)"]
+    SC -->|"Interleaved f32 PCM\n(time-synced)"| CHAIN
+    CHAIN -->|"Processed f32"| CPAL["cpal\n(ALSA / OS Audio Output)"]
 ```
 
 ---
 
-## 2. Key Technologies Explained
+## 2. Key Technologies Explained (For the Team)
 
 ### What is `tokio`?
 By default, Rust only knows how to run blocking code on OS threads. When an application needs to do multiple network and I/O tasks at the same time—such as:
@@ -48,23 +49,23 @@ Instead of spawning a separate C++ `snapclient` binary, we use the pure-Rust [`s
 
 ## 3. Code Structure in `amp-audio`
 
+- **[`src/chain.rs`](src/chain.rs)**:
+  - `AudioPipeline`: Thread-safe (`Send + Sync`) audio controller held by `AmpHandler` in `amp-control`.
+  - `AudioPipeline::set_stream(host, port)`: Stops any previous stream, spawns a new `SnapcastClientHandle`, and launches a dedicated `cpal` output worker thread that pulls time-synchronized stereo `f32` samples.
 - **[`src/snapcast.rs`](src/snapcast.rs)**:
-  - `SnapcastStreamConfig`: Holds connection parameters (`host`, `port`, `client_name`, `instance`). When Maestro calls the `SetStream` gRPC endpoint (`shared/protos/amp.proto`), `amp-control` passes the `host` and `port` here.
-  - `SnapcastClientHandle::spawn(cfg)`: Starts the `SnapClient` on Tokio and returns:
-    - `event_rx`: Emits `ClientEvent` updates (`Connected`, `ServerSettings`, `StreamStarted`, `TimeSyncComplete`, `Disconnected`).
-    - `audio_rx`: Emits decoded `AudioFrame` chunks (`Vec<f32>`, sample rate, channels, timestamp).
-    - `pull_synced_f32(&mut [f32], dac_latency_usec)`: Pulls time-aligned, drift-corrected stereo `f32` samples directly from the shared `Stream` buffer for the `cpal` output callback.
+  - `SnapcastStreamConfig`: Holds connection parameters (`host`, `port`, `client_name`, `instance`).
+  - `SnapcastClientHandle::spawn(cfg)`: Starts `SnapClient` on Tokio and exposes `event_rx`, `audio_rx`, and `pull_synced_f32(&mut [f32], dac_latency_usec)`.
 - **[`examples/snapcast_demo.rs`](examples/snapcast_demo.rs)**:
   - Self-contained runnable demo. It connects to `127.0.0.1:1704` (or automatically spins up an embedded `SnapServer` on `127.0.0.1:1704` streaming a 440 Hz / 554.37 Hz stereo chord if no external server is running), logs all protocol events and chunk RMS levels, and plays the stream through `cpal`.
 
 ---
 
-## 4. Running the Local Demo (Linux / WSL2 Ubuntu)
+## 4. Running Tests & the Local Demo (Linux / WSL2 Ubuntu)
 
 ### Prerequisites on Ubuntu / WSL2
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential pkg-config libasound2-dev libasound2-plugins
+sudo apt-get install -y build-essential pkg-config protobuf-compiler libasound2-dev libasound2-plugins
 ```
 
 *(In WSL2, routing ALSA default output through WSLg PulseAudio allows audio to play through Windows speakers)*:
@@ -72,14 +73,17 @@ sudo apt-get install -y build-essential pkg-config libasound2-dev libasound2-plu
 printf 'pcm.!default {\n    type pulse\n}\nctl.!default {\n    type pulse\n}\n' | sudo tee /etc/asound.conf
 ```
 
-### Run the Demo
-From the `amp/` directory (using `~/.cache/amplify-target` in WSL2 avoids slow cross-OS filesystem builds):
+### Run Unit & Integration Tests
+```bash
+cargo test --target-dir ~/.cache/amplify-target -p amp-audio -p amp-control
+```
 
+### Run the Interactive Audio Demo
 ```bash
 cargo run --target-dir ~/.cache/amplify-target -p amp-audio --example snapcast_demo
 ```
 
-### Expected Output
+### Expected Demo Output
 ```text
 === Amplify: Local Snapcast Demo (amp-audio) ===
 [Server] Port 1704 is free -> Starting local SnapServer on 127.0.0.1:1704 (FLAC 48000:16:2)...
