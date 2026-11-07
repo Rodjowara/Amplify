@@ -1,4 +1,4 @@
-﻿using Maestro.Application.Interfaces;
+﻿using Maestro.Core.Interfaces;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -13,7 +13,7 @@ public class DummyViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     [Qt.Ignore]
-    public static IDummyService Service { get; set; } = null!;
+    public static IAmpManager Manager { get; set; } = null!;
 
     private int _clicks = 0;
     public int Clicks
@@ -47,7 +47,9 @@ public class DummyViewModel : INotifyPropertyChanged
     {
         try
         {
-            PingResponse = await Service.PingAsync("ping");
+            // TODO: connection should be mapped to UI amp model
+            var response = await Manager.AmpList.First().PingAsync("ping");
+            PingResponse = response.Message;
         }
         catch (Exception ex)
         {
