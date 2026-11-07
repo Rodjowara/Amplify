@@ -1,5 +1,4 @@
 ﻿using Maestro.Core.Interfaces;
-using Maestro.Core.Model;
 
 namespace Maestro.Core.Services;
 
