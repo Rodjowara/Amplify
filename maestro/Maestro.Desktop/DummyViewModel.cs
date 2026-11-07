@@ -1,6 +1,4 @@
-﻿using Amplify.Dummy;
-using Maestro.Core.Interfaces;
-using Maestro.Core.Model;
+﻿using Maestro.Core.Interfaces;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
