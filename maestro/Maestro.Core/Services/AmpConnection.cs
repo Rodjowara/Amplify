@@ -7,14 +7,17 @@ namespace Maestro.Core.Services;
 
 public class AmpConnection : IDisposable
 {
+    public string Host { get; }
+    public int Port { get; }
+
     private readonly GrpcChannel _channel;
     private readonly AmpService.AmpServiceClient _client;
 
     public AmpConnection(string connectionString)
     {
         var uri = new Uri(connectionString);
-        var host = uri.Host;
-        var port = uri.Port;
+        Host = uri.Host;
+        Port = uri.Port;
 
         _channel = GrpcChannel.ForAddress(connectionString, new GrpcChannelOptions
         {
@@ -42,13 +45,15 @@ public class AmpConnection : IDisposable
         }
     }
 
-
     private string GetLocalIpAddress()
     {
         using var socket = new Socket(SocketType.Dgram, ProtocolType.Udp);
-        socket.Connect("8.8.8.8", 53);
+        socket.Connect(Host, Port);
 
-        var endpoint = socket.LocalEndPoint as IPEndPoint;
-        return endpoint?.Address?.ToString() ?? "127.0.0.1";
+        var address = ((IPEndPoint)socket.LocalEndPoint!).Address;
+
+        return address.IsIPv4MappedToIPv6
+            ? address.MapToIPv4().ToString()
+            : address.ToString();
     }
 }
