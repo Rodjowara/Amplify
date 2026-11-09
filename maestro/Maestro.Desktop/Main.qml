@@ -14,6 +14,10 @@ ApplicationWindow {
         id: dummy
     }
 
+    PlaybackViewModel {
+        id: playback
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacing.large
@@ -56,6 +60,32 @@ ApplicationWindow {
             text: dummy.pingResponse !== "" ? dummy.pingResponse : "No response yet"
             color: dummy.pingResponse !== "" ? Theme.colors.text : Theme.colors.textMuted
             font.pixelSize: Theme.fontSize.normal
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+        }
+
+        // Debug: stream a local audio file to snapserver
+        TextField {
+            id: trackPath
+            placeholderText: "Path to a local audio file"
+            Layout.fillWidth: true
+        }
+
+        Button {
+            text: "Play"
+            Layout.fillWidth: true
+            onClicked: playback.play(trackPath.text)
+            background: Rectangle {
+                radius: 12
+                border.width: 0
+                color: '#f81414'
+            }
+        }
+
+        Label {
+            text: playback.status
+            color: '#f81414'
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap

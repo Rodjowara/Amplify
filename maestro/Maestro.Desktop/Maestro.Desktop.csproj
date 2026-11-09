@@ -32,6 +32,7 @@
   <ItemGroup>
     <None Include="Main.qml" />
     <Compile Include="DummyViewModel.cs" />
+    <Compile Include="PlaybackViewModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SnapserverBootstrap.cs" />
   </ItemGroup>
