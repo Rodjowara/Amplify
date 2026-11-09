@@ -1,15 +1,18 @@
 ﻿using System.Diagnostics;
+using Maestro.Application.Models;
 
 namespace Maestro.Desktop;
 
-public class SnapcastBootstrap : IAsyncDisposable
+/// <summary>Runs snapserver in a Docker container, with one input stream defined by <see cref="SnapcastStreamOptions"/>.</summary>
+public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 {
     private readonly string _name = "maestro-snapserver";
-    private readonly string _command = string.Join(" && ",
-          // install snappserver
+
+    private string Command => string.Join(" && ",
+          // install snapserver
           "apk add --no-cache snapcast-server",
-          // snapserver config
-          "printf '[stream]\\nsource = tcp://0.0.0.0:4953?name=default&mode=server&sampleformat=48000:16:2&codec=flac\\n' > /etc/snapserver.conf",
+          // snapserver config: one stream, built from the shared options
+          $"printf '[stream]\\nsource = {stream.ToSourceUri()}\\n' > /etc/snapserver.conf",
           // start service
           "exec snapserver");
 
@@ -23,13 +26,13 @@ public class SnapcastBootstrap : IAsyncDisposable
         arguments.AddRange(["run", "-d"]);
         arguments.AddRange(["--name", _name]);
 
-        // NOTE: audio input (port 4953)
-        arguments.AddRange(["-p", "127.0.0.1:4953:4953"]);
+        // NOTE: audio input (PCM from the playback source, localhost only)
+        arguments.AddRange(["-p", $"127.0.0.1:{stream.Port}:{stream.Port}"]);
         // NOTE: audio output (port 1704)
         arguments.AddRange(["-p", "1704:1704",]);
 
         arguments.Add("alpine:3.21");
-        arguments.AddRange(["sh", "-c", _command]);
+        arguments.AddRange(["sh", "-c", Command]);
 
         await ExecuteDockerAsync(arguments, ct);
     }

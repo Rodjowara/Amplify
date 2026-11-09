@@ -27,6 +27,15 @@ alias maestro-run='DYLD_FRAMEWORK_PATH=$QtDir/lib dotnet run --project Maestro.D
  
 Then run `maestro-run` from `maestro/`.
 
+## Local file playback
+
+Needs **ffmpeg** on the PATH (`brew install ffmpeg` / `winget install ffmpeg` / `apt install ffmpeg`) and Docker running with snapserver.
+
+1. Start Maestro, paste the path of an audio file into the text field and press **Play**.
+2. Connect a client: `snapclient -h 127.0.0.1` (macOS/Linux) or `docker/snapclient-rs.exe` / Snap.Net (Windows).
+
+Expect ~1 s delay (snapclient buffer).
+
 ---
 
 # Audio Streaming with Snapcast
