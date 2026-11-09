@@ -4,15 +4,26 @@ package amplify.amp;
 
 option csharp_namespace = "Amplify.Amp";
 
-// Control API of one amp. The amp is the server, Maestro is the client.
-// Kept to what sprint 2 needs; more RPCs get added as features come up.
 service AmpService {
-  rpc GetState (GetStateRequest) returns (AmpState);
+	rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
 
-  // Tells the amp where Maestro's snapserver is, so it can start playing the stream.
-  rpc SetStream (SetStreamRequest) returns (AmpState);
+  //rpc GetState (GetStateRequest) returns (AmpState);
+  //rpc SetStream (SetStreamRequest) returns (AmpState);
 }
 
+message HandshakeRequest
+{
+	string snapcast_host = 1;
+	uint32 snapcast_port = 2;
+}
+
+message HandshakeResponse 
+{
+	bool success = 1;
+	string error = 2;
+}
+
+/*
 message StreamInfo {
   string host = 1;
   uint32 port = 2;
@@ -27,4 +38,4 @@ message GetStateRequest {}
 
 message SetStreamRequest {
   StreamInfo stream = 1;
-}
+}*/
