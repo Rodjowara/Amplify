@@ -20,7 +20,7 @@ message HandshakeRequest
 message HandshakeResponse 
 {
 	bool success = 1;
-	string error = 2;
+	optional string error = 2;
 }
 
 /*
