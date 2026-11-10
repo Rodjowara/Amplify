@@ -1,19 +1,22 @@
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use qtbridge::{QApp, qobject};
 
 // Files of shared/qml, embedded at build time by build.rs.
 include!(concat!(env!("OUT_DIR"), "/shared_qml.rs"));
 
+static ADDRESS: OnceLock<String> = OnceLock::new();
+
 #[derive(Default)]
-pub struct Greeter {}
+pub struct AmpInfo {}
 
 #[qobject(Singleton)]
-impl Greeter {
-    qproperty!("message", Read = message, Constant);
+impl AmpInfo {
+    qproperty!("address", Read = address, Constant);
 
-    fn message(&self) -> String {
-        "Hello from Rust!".into()
+    fn address(&self) -> String {
+        ADDRESS.get().cloned().unwrap_or_default()
     }
 }
 
@@ -30,11 +33,12 @@ fn extract_shared_qml() -> std::io::Result<PathBuf> {
     Ok(dir)
 }
 
-pub fn run() {
+pub fn run(address: String) {
+    let _ = ADDRESS.set(address);
     let shared_qml = extract_shared_qml().expect("failed to extract the shared QML files");
 
     QApp::new()
-        .register::<Greeter>()
+        .register::<AmpInfo>()
         .add_import_path(&shared_qml.to_string_lossy())
         .load_qml(include_bytes!("../qml/main.qml"))
         .run();

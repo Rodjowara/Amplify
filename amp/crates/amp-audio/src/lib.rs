@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::thread;
 use std::time::Duration;
@@ -7,6 +8,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use snapcast_client::stream::{SampleEncoding, Stream};
 use snapcast_client::time_provider::TimeProvider;
 use snapcast_client::{AudioFrame, ClientCommand, ClientConfig, ClientEvent, SnapClient};
+use snapcast_proto::SampleFormat;
 use tokio::sync::{Mutex, mpsc};
 
 #[derive(Default)]
@@ -19,8 +21,7 @@ struct Session {
     client: tokio::task::JoinHandle<()>,
     stop: Arc<AtomicBool>,
     output: thread::JoinHandle<()>,
-    // Never read, but dropping them would close the client's channels.
-    _events: mpsc::Receiver<ClientEvent>,
+    // Never read, but dropping it would close the client's channel.
     _audio: mpsc::Receiver<AudioFrame>,
 }
 
@@ -31,7 +32,7 @@ impl Player {
             old.stop().await;
         }
 
-        let (mut client, _events, _audio) = SnapClient::new(ClientConfig {
+        let (mut client, events, _audio) = SnapClient::new(ClientConfig {
             host,
             port,
             client_name: "Amplify-Amp".into(),
@@ -44,10 +45,12 @@ impl Player {
         let client = tokio::spawn(async move {
             let _ = client.run().await;
         });
+        let (format_tx, format_rx) = std_mpsc::channel();
+        tokio::spawn(forward_formats(events, format_tx));
         let stop = Arc::new(AtomicBool::new(false));
-        let output = spawn_output(time, stream, Arc::clone(&stop));
+        let output = spawn_output(time, stream, format_rx, Arc::clone(&stop));
 
-        *session = Some(Session { commands, client, stop, output, _events, _audio });
+        *session = Some(Session { commands, client, stop, output, _audio });
     }
 }
 
@@ -60,33 +63,72 @@ impl Session {
     }
 }
 
+async fn forward_formats(
+    mut events: mpsc::Receiver<ClientEvent>,
+    formats: std_mpsc::Sender<SampleFormat>,
+) {
+    while let Some(event) = events.recv().await {
+        if let ClientEvent::StreamStarted { format, .. } = event
+            && formats.send(format).is_err()
+        {
+            break;
+        }
+    }
+}
+
 // cpal::Stream is !Send, so it lives on its own thread until stopped.
 fn spawn_output(
     time: Arc<StdMutex<TimeProvider>>,
     stream: Arc<StdMutex<Stream>>,
+    formats: std_mpsc::Receiver<SampleFormat>,
     stop: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        let Some(device) = cpal::default_host().default_output_device() else { return };
-        let Ok(config) = device.default_output_config() else { return };
-        let Ok(output) = device.build_output_stream(
-            &config.into(),
-            move |data: &mut [f32], _: &cpal::OutputCallbackInfo| fill(&time, &stream, data),
-            |err| eprintln!("cpal stream error: {err}"),
-            None,
-        ) else {
-            return;
-        };
-        if output.play().is_err() {
-            return;
-        }
+        let mut output = None;
         while !stop.load(Ordering::Relaxed) {
-            thread::sleep(Duration::from_millis(50));
+            if let Ok(format) = formats.recv_timeout(Duration::from_millis(50)) {
+                drop(output.take());
+                output = open_output(&time, &stream, format);
+            }
         }
     })
 }
 
-fn fill(time: &StdMutex<TimeProvider>, stream: &StdMutex<Stream>, out: &mut [f32]) {
+fn open_output(
+    time: &Arc<StdMutex<TimeProvider>>,
+    stream: &Arc<StdMutex<Stream>>,
+    format: SampleFormat,
+) -> Option<cpal::Stream> {
+    let Some(device) = cpal::default_host().default_output_device() else {
+        eprintln!("no audio output device");
+        return None;
+    };
+    let config = cpal::StreamConfig {
+        channels: format.channels(),
+        sample_rate: cpal::SampleRate(format.rate()),
+        buffer_size: cpal::BufferSize::Default,
+    };
+    let (time, stream) = (Arc::clone(time), Arc::clone(stream));
+    let result = device
+        .build_output_stream(
+            &config,
+            move |data: &mut [f32], info: &cpal::OutputCallbackInfo| {
+                fill(&time, &stream, data, dac_delay_usec(info))
+            },
+            |err| eprintln!("cpal stream error: {err}"),
+            None,
+        )
+        .map_err(|e| e.to_string())
+        .and_then(|output| output.play().map(|_| output).map_err(|e| e.to_string()));
+    result.inspect_err(|e| eprintln!("could not open audio output for {format:?}: {e}")).ok()
+}
+
+fn dac_delay_usec(info: &cpal::OutputCallbackInfo) -> i64 {
+    let ts = info.timestamp();
+    ts.playback.duration_since(&ts.callback).map_or(0, |d| d.as_micros() as i64)
+}
+
+fn fill(time: &StdMutex<TimeProvider>, stream: &StdMutex<Stream>, out: &mut [f32], dac_usec: i64) {
     let diff = time.lock().unwrap_or_else(|e| e.into_inner()).diff_to_server_usec();
     let server_now = snapcast_proto::time::now_usec() + diff;
 
@@ -99,7 +141,7 @@ fn fill(time: &StdMutex<TimeProvider>, stream: &StdMutex<Stream>, out: &mut [f32
     }
 
     let mut raw = vec![0u8; frames * frame_size];
-    stream.get_player_chunk_or_silence(server_now, 0, &mut raw, frames as u32);
+    stream.get_player_chunk_or_silence(server_now, dac_usec, &mut raw, frames as u32);
     decode(stream.encoding(), format.bits(), &raw, out);
 }
 
@@ -200,7 +242,7 @@ mod tests {
         let mut peak = 0.0f32;
         for _ in 0..100 {
             tokio::time::sleep(Duration::from_millis(50)).await;
-            fill(&time, &stream, &mut out);
+            fill(&time, &stream, &mut out, 0);
             peak = out.iter().fold(0.0, |m, s| m.max(s.abs()));
             if peak > 0.0 {
                 break;

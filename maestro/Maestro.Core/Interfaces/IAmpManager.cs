@@ -7,4 +7,6 @@ public interface IAmpManager
     IReadOnlyList<AmpConnection> AmpList { get; }
 
     void Add(string connectionString);
+
+    void Clear();
 }

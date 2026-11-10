@@ -12,7 +12,7 @@ Window {
         spacing: Theme.spacing.normal
 
         Text {
-            text: Greeter.message
+            text: AmpInfo.address
             color: Theme.colors.text
             font.pixelSize: Theme.fontSize.normal
             anchors.horizontalCenter: parent.horizontalCenter

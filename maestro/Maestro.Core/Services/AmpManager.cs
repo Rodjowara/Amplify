@@ -15,7 +15,7 @@ public class AmpManager : IAmpManager, IDisposable
         _amps.Add(amp);
     }
 
-    public void Dispose()
+    public void Clear()
     {
         foreach (var amp in _amps) 
         {
@@ -24,4 +24,6 @@ public class AmpManager : IAmpManager, IDisposable
 
         _amps.Clear();
     }
+
+    public void Dispose() => Clear();
 }

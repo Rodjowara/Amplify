@@ -18,6 +18,10 @@ ApplicationWindow {
         id: playback
     }
 
+    AmpViewModel {
+        id: amp
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacing.large
@@ -50,15 +54,27 @@ ApplicationWindow {
 
         Item { Layout.fillHeight: true }
 
-        AmplifyButton {
-            text: "Send gRPC message"
+        RowLayout {
             Layout.fillWidth: true
-            onClicked: dummy.ping()
+            spacing: Theme.spacing.small
+
+            TextField {
+                id: ampAddress
+                text: "127.0.0.1:50051"
+                placeholderText: "Amp address (ip:port)"
+                Layout.fillWidth: true
+                onAccepted: amp.connect(text)
+            }
+
+            AmplifyButton {
+                text: "Connect"
+                onClicked: amp.connect(ampAddress.text)
+            }
         }
 
         Label {
-            text: dummy.pingResponse !== "" ? dummy.pingResponse : "No response yet"
-            color: dummy.pingResponse !== "" ? Theme.colors.text : Theme.colors.textMuted
+            text: amp.status !== "" ? amp.status : "No amp connected"
+            color: amp.status !== "" ? Theme.colors.text : Theme.colors.textMuted
             font.pixelSize: Theme.fontSize.normal
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter

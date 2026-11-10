@@ -20,8 +20,9 @@ using var provider = services.BuildServiceProvider();
 
 // TEST
 var manager = provider.GetService<IAmpManager>()!;
-manager.Add("http://127.0.0.1:50051");
 DummyViewModel.Manager = manager;
+AmpViewModel.Manager = manager;
+AmpViewModel.StreamPort = localStream.ClientPort;
 
 await using var localSource = new LocalFileSource(localStream);
 PlaybackViewModel.Source = localSource;

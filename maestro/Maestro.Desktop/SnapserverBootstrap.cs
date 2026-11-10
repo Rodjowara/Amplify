@@ -28,8 +28,8 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
         // NOTE: audio input (PCM from the playback source, localhost only)
         arguments.AddRange(["-p", $"127.0.0.1:{stream.Port}:{stream.Port}"]);
-        // NOTE: audio output (port 1704)
-        arguments.AddRange(["-p", "1704:1704",]);
+        // NOTE: audio output (snapcast clients)
+        arguments.AddRange(["-p", $"{stream.ClientPort}:1704"]);
 
         arguments.Add("alpine:3.21");
         arguments.AddRange(["sh", "-c", Command]);
