@@ -5,3 +5,4 @@ target/
 .vscode/
 .idea/
 .DS_Store
+aqtinstall.log
