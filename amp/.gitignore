@@ -1,14 +1,7 @@
-# Rust build output (generated gRPC code also ends up here)
 target/
-
-# Qt tooling (generated QML language server config)
 .qmlls.ini
-
-# Secrets and local config
 .env
 *.local
-
-# Editor and OS files
 .vscode/
 .idea/
 .DS_Store

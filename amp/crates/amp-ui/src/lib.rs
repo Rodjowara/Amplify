@@ -1,13 +1,23 @@
-mod backend;
-mod models;
-
 use std::path::PathBuf;
-use qtbridge::QApp;
+
+use qtbridge::{QApp, qobject};
 
 // Files of shared/qml, embedded at build time by build.rs.
 include!(concat!(env!("OUT_DIR"), "/shared_qml.rs"));
 
-// Writes the embedded shared QML files to a temp folder and returns that folder.
+#[derive(Default)]
+pub struct Greeter {}
+
+#[qobject(Singleton)]
+impl Greeter {
+    qproperty!("message", Read = message, Constant);
+
+    fn message(&self) -> String {
+        "Hello from Rust!".into()
+    }
+}
+
+// Writes the embedded shared QML files to a temp folder so Qt can import them.
 fn extract_shared_qml() -> std::io::Result<PathBuf> {
     let dir = std::env::temp_dir().join("amplify-shared-qml");
     for (relative_path, bytes) in SHARED_QML_FILES {
@@ -21,12 +31,10 @@ fn extract_shared_qml() -> std::io::Result<PathBuf> {
 }
 
 pub fn run() {
-    // let shared_qml = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../shared/qml");
     let shared_qml = extract_shared_qml().expect("failed to extract the shared QML files");
 
     QApp::new()
-        .register::<backend::Greeter>()
-        //.add_import_path(shared_qml)
+        .register::<Greeter>()
         .add_import_path(&shared_qml.to_string_lossy())
         .load_qml(include_bytes!("../qml/main.qml"))
         .run();
