@@ -1,3 +1,3 @@
 [workspace]
 resolver = "3"
-members = ["crates/amp-app", "crates/amp-ui"]
+members = ["crates/amp-app", "crates/amp-ui", "crates/amp-audio"]
