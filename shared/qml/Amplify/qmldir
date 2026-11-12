@@ -1,0 +1,5 @@
+module Amplify
+singleton Theme 1.0 Theme.qml
+singleton Icons 1.0 Icons.qml
+AmplifyButton 1.0 AmplifyButton.qml
+AmplifyPlayPauseButton 1.0 AmplifyPlayPauseButton.qml

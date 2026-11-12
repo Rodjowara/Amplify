@@ -1,94 +1,91 @@
 ﻿import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import Amplify
 
 ApplicationWindow {
     id: win
     visible: true
-    title: "Qt Bridge for C#"
+    title: "Maestro"
     width: 365; height: 510
-    color: "#121212"
+    color: Theme.colors.background
 
     DummyViewModel {
         id: dummy
     }
 
+    PlaybackViewModel {
+        id: playback
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 20
+        anchors.margins: Theme.spacing.large
+        spacing: Theme.spacing.large
 
         Label {
-            text: "Hello, World!"
-            font.pixelSize: 40
-            color: "white"
-            horizontalAlignment: Text.AlignHCenter
+            text: "Maestro"
+            font.pixelSize: Theme.fontSize.title
+            color: Theme.colors.text
             Layout.alignment: Qt.AlignHCenter
         }
 
         ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 6
-            Label {
-                text: "Welcome to Qt Bridge for C#"
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: 24
-                color: "#cfcfcf"
+            Layout.alignment: Qt.AlignHCenter
+            spacing: Theme.spacing.small
+
+            AmplifyPlayPauseButton {
+                playing: dummy.playing
+                onPlayingChanged: dummy.playing = playing
+                Layout.alignment: Qt.AlignHCenter
             }
 
             Label {
-                text: "QML Multi-language App UI"
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: 24
-                color: "white"
-                wrapMode: Text.WordWrap
+                text: dummy.playing ? "Playing" : "Paused"
+                font.pixelSize: Theme.fontSize.small
+                color: Theme.colors.textMuted
+                Layout.alignment: Qt.AlignHCenter
             }
         }
 
-        Button {
-            id: counterBtn
-            text: dummy.clicks === 0 ? "Click me" : "Clicked " + dummy.clicks + " times"
+        Item { Layout.fillHeight: true }
 
-            Layout.fillWidth: true
-            Layout.preferredHeight: 48
-            font.pixelSize: 16
-
-            hoverEnabled: false
-            focusPolicy: Qt.NoFocus
-
-            readonly property color brandGreen: "#41cd52"
-
-            background: Rectangle {
-                radius: 12
-                border.width: 0
-                color: counterBtn.down
-                    ? Qt.darker(counterBtn.brandGreen, 1.2)
-                    : counterBtn.brandGreen
-            }
-
-            contentItem: Text {
-                text: counterBtn.text
-                color: "white"
-                font: counterBtn.font
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
-            }
-
-            onClicked: dummy.clicks += 1
-        }
-
-        Button {
-            text: "Ping"
+        AmplifyButton {
+            text: "Send gRPC message"
             Layout.fillWidth: true
             onClicked: dummy.ping()
         }
 
         Label {
-            text: dummy.pingResponse
-            color: "white"
+            text: dummy.pingResponse !== "" ? dummy.pingResponse : "No response yet"
+            color: dummy.pingResponse !== "" ? Theme.colors.text : Theme.colors.textMuted
+            font.pixelSize: Theme.fontSize.normal
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+        }
+
+        // Debug: stream a local audio file to snapserver
+        TextField {
+            id: trackPath
+            placeholderText: "Path to a local audio file"
+            Layout.fillWidth: true
+        }
+
+        Button {
+            text: "Play"
+            Layout.fillWidth: true
+            onClicked: playback.play(trackPath.text)
+            background: Rectangle {
+                radius: 12
+                border.width: 0
+                color: '#f81414'
+            }
+        }
+
+        Label {
+            text: playback.status
+            color: '#f81414'
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
