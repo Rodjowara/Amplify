@@ -46,12 +46,13 @@ async fn main() -> anyhow::Result<()> {
         client_name: "Stage 1 Left (Local Test)".to_string(),
         instance: 1,
     });
+    let mut event_rx = handle.take_event_rx().expect("event_rx present");
 
     // Simple ring buffer to feed the sound card (`cpal`) from `audio_rx`
     let ring_buf: Arc<Mutex<VecDeque<f32>>> =
         Arc::new(Mutex::new(VecDeque::with_capacity(48_000 * 2)));
 
-    // 3. Open the default audio output device via `cpal`
+    // 3. Open the default audio output device via `cpal` at 48000 Hz stereo
     let _cpal_stream = start_cpal_output(Arc::clone(&ring_buf));
 
     // 4. Receive events and audio frames for 8 seconds
@@ -65,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
                 println!("\n[Demo] 8-second test completed. Total chunks received: {total_frames_received}");
                 break;
             }
-            Some(ev) = handle.event_rx.recv() => {
+            Some(ev) = event_rx.recv() => {
                 match ev {
                     ClientEvent::Connected { host, port } => {
                         println!("[Client] Connected to snapserver at {host}:{port}");
@@ -175,7 +176,7 @@ fn spawn_test_snapserver(listener: TcpListener) {
     });
 }
 
-/// Opens the default output audio device via `cpal` (if a sound card is available).
+/// Opens the default output audio device via `cpal` at 48000 Hz stereo.
 fn start_cpal_output(ring_buf: Arc<Mutex<VecDeque<f32>>>) -> Option<cpal::Stream> {
     let host = cpal::default_host();
     let device = match host.default_output_device() {
@@ -187,20 +188,14 @@ fn start_cpal_output(ring_buf: Arc<Mutex<VecDeque<f32>>>) -> Option<cpal::Stream
     };
 
     let dev_name = device.name().unwrap_or_else(|_| "Unknown".into());
-    let config = match device.default_output_config() {
-        Ok(c) => c,
-        Err(e) => {
-            println!("[Audio] Could not query default output config for '{dev_name}': {e}");
-            return None;
-        }
+    let stream_config = cpal::StreamConfig {
+        channels: 2,
+        sample_rate: cpal::SampleRate(48_000),
+        buffer_size: cpal::BufferSize::Default,
     };
 
-    println!(
-        "[Audio] Active output device: '{dev_name}' ({:?})",
-        config.config()
-    );
+    println!("[Audio] Active output device: '{dev_name}' ({stream_config:?})");
 
-    let stream_config: cpal::StreamConfig = config.into();
     let stream = device
         .build_output_stream(
             &stream_config,

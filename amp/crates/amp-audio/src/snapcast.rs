@@ -40,7 +40,7 @@ impl Default for SnapcastStreamConfig {
 /// - `stream` & `time_provider`: shared time-synchronized buffer for sample-accurate pull from `cpal`,
 /// - `command_tx`: control channel to stop the client or update volume/mute.
 pub struct SnapcastClientHandle {
-    pub event_rx: mpsc::Receiver<ClientEvent>,
+    pub event_rx: Option<mpsc::Receiver<ClientEvent>>,
     pub audio_rx: mpsc::Receiver<AudioFrame>,
     pub command_tx: mpsc::Sender<ClientCommand>,
     pub time_provider: Arc<Mutex<TimeProvider>>,
@@ -67,13 +67,18 @@ impl SnapcastClientHandle {
         let task = tokio::spawn(async move { client.run().await });
 
         Self {
-            event_rx,
+            event_rx: Some(event_rx),
             audio_rx,
             command_tx,
             time_provider,
             stream,
             task: Mutex::new(Some(task)),
         }
+    }
+
+    /// Take ownership of the [`ClientEvent`] receiver (e.g. to forward format changes to `cpal`).
+    pub fn take_event_rx(&mut self) -> Option<mpsc::Receiver<ClientEvent>> {
+        self.event_rx.take()
     }
 
     /// Estimated current server timestamp in microseconds (`now_usec + diff_to_server_usec`).
