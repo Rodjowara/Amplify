@@ -31,8 +31,10 @@
 
   <ItemGroup>
     <None Include="Main.qml" />
+    <Compile Include="AmpItem.cs" />
     <Compile Include="DummyViewModel.cs" />
     <Compile Include="PlaybackViewModel.cs" />
+    <Compile Include="SidebarViewModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SnapserverBootstrap.cs" />
   </ItemGroup>

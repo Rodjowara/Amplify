@@ -2,13 +2,30 @@
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Amplify
+import components
+import pages
 
 ApplicationWindow {
     id: win
     visible: true
     title: "Maestro"
-    width: 365; height: 510
+    width: 1100; height: 700
+    minimumWidth: 640; minimumHeight: 480
     color: Theme.colors.background
+
+    // Colors for plain Qt controls (TextField, ToolTip...) that don't use the Theme directly.
+    palette {
+        window: Theme.colors.background
+        windowText: Theme.colors.text
+        base: Theme.colors.surfaceHover
+        text: Theme.colors.text
+        button: Theme.colors.surfaceHover
+        buttonText: Theme.colors.text
+        highlight: Theme.colors.primary
+        placeholderText: Theme.colors.textSubtle
+        toolTipBase: Theme.colors.surfaceHover
+        toolTipText: Theme.colors.text
+    }
 
     DummyViewModel {
         id: dummy
@@ -18,77 +35,47 @@ ApplicationWindow {
         id: playback
     }
 
+    SidebarViewModel {
+        id: nav
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.spacing.large
-        spacing: Theme.spacing.large
+        spacing: 0
 
-        Label {
-            text: "Maestro"
-            font.pixelSize: Theme.fontSize.title
-            color: Theme.colors.text
-            Layout.alignment: Qt.AlignHCenter
-        }
+        RowLayout {
+            spacing: 0
+            Layout.fillWidth: true
+            Layout.fillHeight: true
 
-        ColumnLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: Theme.spacing.small
-
-            AmplifyPlayPauseButton {
-                playing: dummy.playing
-                onPlayingChanged: dummy.playing = playing
-                Layout.alignment: Qt.AlignHCenter
+            Sidebar {
+                vm: nav
+                Layout.fillHeight: true
+                // TODO: open the Add amp card once it exists.
+                onAddAmpRequested: console.log("Add amp: not implemented yet")
             }
 
-            Label {
-                text: dummy.playing ? "Playing" : "Paused"
-                font.pixelSize: Theme.fontSize.small
-                color: Theme.colors.textMuted
-                Layout.alignment: Qt.AlignHCenter
-            }
-        }
+            // One page per nav.currentPage
+            StackLayout {
+                currentIndex: ["playlist", "settings", "tuning"].indexOf(nav.currentPage)
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-        Item { Layout.fillHeight: true }
-
-        AmplifyButton {
-            text: "Send gRPC message"
-            Layout.fillWidth: true
-            onClicked: dummy.ping()
-        }
-
-        Label {
-            text: dummy.pingResponse !== "" ? dummy.pingResponse : "No response yet"
-            color: dummy.pingResponse !== "" ? Theme.colors.text : Theme.colors.textMuted
-            font.pixelSize: Theme.fontSize.normal
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-        }
-
-        // Debug: stream a local audio file to snapserver
-        TextField {
-            id: trackPath
-            placeholderText: "Path to a local audio file"
-            Layout.fillWidth: true
-        }
-
-        Button {
-            text: "Play"
-            Layout.fillWidth: true
-            onClicked: playback.play(trackPath.text)
-            background: Rectangle {
-                radius: 12
-                border.width: 0
-                color: '#f81414'
+                PlaylistPage {
+                    dummy: dummy
+                    playback: playback
+                }
+                PlaceholderPage { title: qsTr("Settings") }
+                PlaceholderPage { title: qsTr("Tuning") + ": " + nav.selectedAmpIp }
             }
         }
 
-        Label {
-            text: playback.status
-            color: '#f81414'
+        // TODO: previous/next, shuffle/repeat, seek and volume need backend support (playlist, master volume).
+        PlaybackDock {
+            title: playback.trackTitle
+            playing: playback.playing
             Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
+            onPlayPauseClicked: playback.togglePlaying()
         }
     }
 }
