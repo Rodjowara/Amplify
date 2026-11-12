@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net.Sockets;
 using Maestro.Application.Interfaces;
+using Maestro.Core.Errors;
 using Maestro.Application.Models;
 
 namespace Maestro.Infrastructure.Services.Playback;
@@ -10,8 +11,12 @@ namespace Maestro.Infrastructure.Services.Playback;
 /// Plays local audio files: ffmpeg decodes the file to raw PCM, and the PCM is sent over TCP
 /// to the snapserver stream described by <see cref="SnapcastStreamOptions"/>.
 /// Needs <c>ffmpeg</c> on the PATH.
+/// Failures while starting throw <see cref="MaestroException"/>; failures while playing go to <paramref name="reporter"/>.
 /// </summary>
-public sealed class LocalFileSource(SnapcastStreamOptions stream) : IPlaybackSource, IAsyncDisposable
+/// <param name="stream">The snapserver stream to send the audio to.</param>
+/// <param name="reporter">Receives errors that happen in the background. Falls back to stderr if null.</param>
+public sealed class LocalFileSource(SnapcastStreamOptions stream, IErrorReporter? reporter = null)
+    : IPlaybackSource, IAsyncDisposable
 {
     // Makes sure only one PlayAsync/Stop runs at a time.
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -22,9 +27,15 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream) : IPlaybackSou
     public async Task PlayAsync(Track track, CancellationToken ct = default)
     {
         if (!track.Location.IsFile)
-            throw new ArgumentException($"LocalFileSource can only play file URIs, got '{track.Location}'.", nameof(track));
+            throw new MaestroException(
+                ErrorCode.UnsupportedTrackSource,
+                $"LocalFileSource can only play file URIs, got '{track.Location}'.",
+                MaestroException.Arg("location", track.Location.ToString()));
         if (!File.Exists(track.Location.LocalPath))
-            throw new FileNotFoundException("Audio file not found.", track.Location.LocalPath);
+            throw new MaestroException(
+                ErrorCode.FileNotFound,
+                $"Audio file not found: '{track.Location.LocalPath}'.",
+                MaestroException.Arg("path", track.Location.LocalPath));
 
         await _lock.WaitAsync(ct);
         try
@@ -35,7 +46,18 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream) : IPlaybackSou
             var tcp = new TcpClient();
             try
             {
-                await tcp.ConnectAsync(stream.Host, stream.Port, ct);
+                try
+                {
+                    await tcp.ConnectAsync(stream.Host, stream.Port, ct);
+                }
+                catch (SocketException ex)
+                {
+                    throw new MaestroException(
+                        ErrorCode.SnapserverUnreachable,
+                        $"Could not connect to snapserver at {stream.Host}:{stream.Port}: {ex.Message}",
+                        inner: ex);
+                }
+
                 var ffmpeg = StartFfmpeg(track.Location.LocalPath);
 
                 _playback = new CancellationTokenSource();
@@ -106,12 +128,15 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream) : IPlaybackSou
         }
         catch (Win32Exception ex)
         {
-            throw new InvalidOperationException("ffmpeg was not found. Install it and make sure it is on the PATH.", ex);
+            throw new MaestroException(
+                ErrorCode.FfmpegNotFound,
+                "ffmpeg was not found. Install it and make sure it is on the PATH.",
+                inner: ex);
         }
     }
 
     /// <summary>Copies ffmpeg's PCM output to snapserver until the file ends or playback is cancelled.</summary>
-    private static async Task PumpAsync(Process ffmpeg, TcpClient tcp, CancellationToken ct)
+    private async Task PumpAsync(Process ffmpeg, TcpClient tcp, CancellationToken ct)
     {
         using (tcp)
         using (ffmpeg)
@@ -127,7 +152,15 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream) : IPlaybackSou
             catch (Exception ex) when (ex is IOException or SocketException)
             {
                 // snapserver closed the connection
-                Console.Error.WriteLine($"[LocalFileSource] stream to snapserver ended: {ex.Message}");
+                var error = new MaestroException(
+                    ErrorCode.StreamInterrupted,
+                    $"Stream to snapserver ended: {ex.Message}",
+                    inner: ex);
+
+                if (reporter is not null)
+                    reporter.Report(error, ErrorSeverity.Warning);
+                else
+                    Console.Error.WriteLine($"[LocalFileSource] {error.Message}");
             }
             finally
             {

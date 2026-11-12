@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
+using Maestro.Core.Errors;
 using Maestro.Application.Models;
 
 namespace Maestro.Desktop;
@@ -39,7 +41,15 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await ExecuteDockerAsync(["rm", "-f", _name], CancellationToken.None);
+        // Cleanup on shutdown must not throw, there is nobody left to handle it.
+        try
+        {
+            await ExecuteDockerAsync(["rm", "-f", _name], CancellationToken.None);
+        }
+        catch (MaestroException ex)
+        {
+            Console.Error.WriteLine($"[SnapcastBootstrap] could not remove container '{_name}': {ex.Message}");
+        }
     }
 
     private static async Task ExecuteDockerAsync(List<string> arguments, CancellationToken ct)
@@ -53,7 +63,20 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
         arguments.ForEach(info.ArgumentList.Add);
 
-        using var process = Process.Start(info)!;
+        Process process;
+        try
+        {
+            process = Process.Start(info)!;
+        }
+        catch (Win32Exception ex)
+        {
+            throw new MaestroException(
+                ErrorCode.DockerNotAvailable,
+                "docker was not found. Install Docker and make sure it is on the PATH.",
+                inner: ex);
+        }
+
+        using var _ = process;
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
 
@@ -62,7 +85,16 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException(await error);
+            var stderr = (await error).Trim();
+
+            // "docker" exists but its daemon isn't running (Docker Desktop not started).
+            var daemonDown = stderr.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase)
+                || stderr.Contains("docker daemon is not running", StringComparison.OrdinalIgnoreCase)
+                || stderr.Contains("error during connect", StringComparison.OrdinalIgnoreCase);
+
+            throw new MaestroException(
+                daemonDown ? ErrorCode.DockerNotAvailable : ErrorCode.SnapserverStartFailed,
+                $"docker {string.Join(' ', arguments.Take(2))} failed with exit code {process.ExitCode}: {stderr}");
         }
     }
 }

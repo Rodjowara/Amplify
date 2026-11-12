@@ -10,7 +10,7 @@ public class AmpManager : IAmpManager, IDisposable
 
     public void Add(string connectionString)
     {
-        // TODO: error handling
+        // Throws MaestroException(InvalidAmpAddress) if the address is not valid.
         var amp = new AmpConnection(connectionString);
         _amps.Add(amp);
     }
