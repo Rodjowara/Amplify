@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use amp_audio::chain::AudioPipeline;
 use tonic::{Request, Response, Status};
 
 use crate::proto::amp::{
@@ -9,6 +10,7 @@ use crate::proto::amp::{
 #[derive(Debug, Clone)]
 pub struct AmpHandler {
     state: Arc<Mutex<AmpState>>,
+    audio: Arc<AudioPipeline>,
 }
 
 impl AmpHandler {
@@ -18,6 +20,7 @@ impl AmpHandler {
                 name: name.into(),
                 stream: None,
             })),
+            audio: Arc::new(AudioPipeline::new()),
         }
     }
 }
@@ -47,6 +50,11 @@ impl AmpService for AmpHandler {
         if stream.port == 0 || stream.port > 65535 {
             return Err(Status::invalid_argument("port must be between 1 and 65535"));
         }
+
+        // Start or reconnect the Snapcast audio pipeline to Maestro's snapserver
+        self.audio
+            .set_stream(stream.host.clone(), stream.port as u16)
+            .await;
 
         let mut state = self.state.lock().expect("state lock poisoned");
         state.stream = Some(stream);
