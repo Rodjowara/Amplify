@@ -30,8 +30,42 @@ public class PlaybackViewModel : INotifyPropertyChanged
         }
     }
 
+    private string _trackTitle = "";
+    /// <summary>Title of the current track, shown in the playback dock.</summary>
+    public string TrackTitle
+    {
+        get => _trackTitle;
+        private set
+        {
+            if (_trackTitle == value)
+                return;
+            _trackTitle = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private bool _playing;
+    public bool Playing
+    {
+        get => _playing;
+        private set
+        {
+            if (_playing == value)
+                return;
+            _playing = value;
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>Called from QML. Starts playback without blocking the UI thread.</summary>
     public void Play(string path) => _ = PlayAsync(path);
+
+    // TODO: pause/resume the source once IPlaybackSource supports it; for now only the state flips.
+    public void TogglePlaying()
+    {
+        if (TrackTitle != "")
+            Playing = !Playing;
+    }
 
     private async Task PlayAsync(string path)
     {
@@ -40,6 +74,8 @@ public class PlaybackViewModel : INotifyPropertyChanged
             var track = Track.FromFile(path.Trim());
             await Source.PlayAsync(track);
             Status = $"Playing: {track.Title}";
+            TrackTitle = track.Title;
+            Playing = true;
         }
         catch (Exception ex)
         {

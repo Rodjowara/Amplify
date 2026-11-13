@@ -28,20 +28,6 @@ public class DummyViewModel : INotifyPropertyChanged
         }
     }
 
-    // TODO: start/stop the playback source once it exists (#75).
-    private bool _playing = false;
-    public bool Playing
-    {
-        get => _playing;
-        set
-        {
-            if (_playing == value)
-                return;
-            _playing = value;
-            OnPropertyChanged();
-        }
-    }
-
     private string _pingResponse = "";
     public string PingResponse
     {
