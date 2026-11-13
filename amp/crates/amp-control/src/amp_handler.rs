@@ -51,7 +51,6 @@ impl AmpService for AmpHandler {
             return Err(Status::invalid_argument("port must be between 1 and 65535"));
         }
 
-        // Start or reconnect the Snapcast audio pipeline to Maestro's snapserver
         self.audio
             .set_stream(stream.host.clone(), stream.port as u16)
             .await;

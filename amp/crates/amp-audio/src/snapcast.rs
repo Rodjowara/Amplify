@@ -1,104 +1,63 @@
 use std::sync::{Arc, Mutex};
 
 use snapcast_client::{
-    AudioFrame, ClientCommand, ClientConfig, ClientEvent, DEFAULT_STREAM_PORT, SnapClient,
+    ClientCommand, ClientConfig, ClientEvent, SnapClient,
     stream::{SampleEncoding, Stream},
     time_provider::TimeProvider,
 };
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-/// Configuration for connecting an Amp instance to Maestro's Snapcast server.
-#[derive(Debug, Clone)]
-pub struct SnapcastStreamConfig {
-    /// Hostname or IP address of Maestro's snapserver (e.g. "127.0.0.1" or "192.168.1.10").
-    pub host: String,
-    /// Snapcast stream TCP port (default: 1704).
-    pub port: u16,
-    /// Human-readable name of this Amp instance sent in the Hello handshake.
-    pub client_name: String,
-    /// Instance ID when running multiple simulated Amps on the same laptop.
-    pub instance: u32,
-}
+const BITS_PER_SAMPLE_16: u16 = 16;
+const BITS_PER_SAMPLE_24: u16 = 24;
+const BITS_PER_SAMPLE_32: u16 = 32;
+const BYTES_PER_SAMPLE_16: usize = 2;
+const BYTES_PER_SAMPLE_32: usize = 4;
 
-impl Default for SnapcastStreamConfig {
-    fn default() -> Self {
-        Self {
-            host: "127.0.0.1".to_string(),
-            port: DEFAULT_STREAM_PORT,
-            client_name: "Amplify-Amp".to_string(),
-            instance: 1,
-        }
-    }
-}
-
-/// Active handle to a running Snapcast client session.
-///
-/// Provides:
-/// - `audio_rx`: decoded interleaved `f32` frames (`AudioFrame`) as they arrive,
-/// - `event_rx`: connection, codec, volume, and clock-sync events (`ClientEvent`),
-/// - `stream` & `time_provider`: shared time-synchronized buffer for sample-accurate pull from `cpal`,
-/// - `command_tx`: control channel to stop the client or update volume/mute.
-pub struct SnapcastClientHandle {
-    pub event_rx: Option<mpsc::Receiver<ClientEvent>>,
-    pub audio_rx: mpsc::Receiver<AudioFrame>,
-    pub command_tx: mpsc::Sender<ClientCommand>,
-    pub time_provider: Arc<Mutex<TimeProvider>>,
-    pub stream: Arc<Mutex<Stream>>,
-    task: Mutex<Option<JoinHandle<anyhow::Result<()>>>>,
+pub(crate) struct SnapcastClientHandle {
+    command_tx: mpsc::Sender<ClientCommand>,
+    time_provider: Arc<Mutex<TimeProvider>>,
+    stream: Arc<Mutex<Stream>>,
+    task: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl SnapcastClientHandle {
-    /// Spawn a Snapcast client in the background on the active Tokio runtime.
-    pub fn spawn(cfg: SnapcastStreamConfig) -> Self {
-        let client_cfg = ClientConfig {
-            host: cfg.host,
-            port: cfg.port,
-            client_name: cfg.client_name,
-            instance: cfg.instance,
+    pub(crate) fn spawn(host: String, port: u16) -> (Self, mpsc::Receiver<ClientEvent>) {
+        let client_config = ClientConfig {
+            host,
+            port,
             ..ClientConfig::default()
         };
 
-        let (mut client, event_rx, audio_rx) = SnapClient::new(client_cfg);
+        let (mut client, event_rx, _audio_rx) = SnapClient::new(client_config);
         let command_tx = client.command_sender();
         let time_provider = Arc::clone(&client.time_provider);
         let stream = Arc::clone(&client.stream);
 
-        let task = tokio::spawn(async move { client.run().await });
+        let task = tokio::spawn(async move {
+            let _ = client.run().await;
+        });
 
-        Self {
-            event_rx: Some(event_rx),
-            audio_rx,
-            command_tx,
-            time_provider,
-            stream,
-            task: Mutex::new(Some(task)),
-        }
+        (
+            Self {
+                command_tx,
+                time_provider,
+                stream,
+                task: Mutex::new(Some(task)),
+            },
+            event_rx,
+        )
     }
 
-    /// Take ownership of the [`ClientEvent`] receiver (e.g. to forward format changes to `cpal`).
-    pub fn take_event_rx(&mut self) -> Option<mpsc::Receiver<ClientEvent>> {
-        self.event_rx.take()
-    }
-
-    /// Estimated current server timestamp in microseconds (`now_usec + diff_to_server_usec`).
-    pub fn server_now_usec(&self) -> i64 {
-        let diff = self
+    pub(crate) fn pull_synced_f32(&self, output: &mut [f32], dac_latency_usec: i64) -> bool {
+        let diff_usec = self
             .time_provider
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(|err| err.into_inner())
             .diff_to_server_usec();
-        snapcast_proto::time::now_usec() + diff
-    }
+        let server_now_usec = snapcast_proto::time::now_usec() + diff_usec;
 
-    /// Read time-synchronized stereo `f32` samples for the audio output callback (`cpal`).
-    ///
-    /// Uses Snapcast's `TimeProvider` and `Stream::get_player_chunk_or_silence` so that
-    /// multiple Amps play the exact same sample at the exact same wall-clock instant.
-    pub fn pull_synced_f32(&self, output: &mut [f32], dac_latency_usec: i64) -> bool {
-        let server_now_usec = self.server_now_usec();
-
-        let mut stream = self.stream.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stream = self.stream.lock().unwrap_or_else(|err| err.into_inner());
         let format = stream.format();
         let encoding = stream.encoding();
         let channels = format.channels().max(1) as usize;
@@ -120,27 +79,31 @@ impl SnapcastClientHandle {
 
         match encoding {
             SampleEncoding::Float32 => {
-                for (out_sample, chunk) in output.iter_mut().zip(raw_bytes.chunks_exact(4)) {
-                    *out_sample = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_32>();
+                for (out_sample, chunk) in output.iter_mut().zip(chunks) {
+                    *out_sample = f32::from_le_bytes(*chunk);
                 }
             }
             SampleEncoding::PcmInt => match format.bits() {
-                16 => {
-                    for (out_sample, chunk) in output.iter_mut().zip(raw_bytes.chunks_exact(2)) {
-                        let s = i16::from_le_bytes([chunk[0], chunk[1]]);
-                        *out_sample = s as f32 / i16::MAX as f32;
+                BITS_PER_SAMPLE_16 => {
+                    let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_16>();
+                    for (out_sample, chunk) in output.iter_mut().zip(chunks) {
+                        let sample = i16::from_le_bytes(*chunk);
+                        *out_sample = sample as f32 / i16::MAX as f32;
                     }
                 }
-                24 => {
-                    for (out_sample, chunk) in output.iter_mut().zip(raw_bytes.chunks_exact(4)) {
-                        let s = i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                        *out_sample = s as f32 / snapcast_proto::PCM_24BIT_MAX;
+                BITS_PER_SAMPLE_24 => {
+                    let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_32>();
+                    for (out_sample, chunk) in output.iter_mut().zip(chunks) {
+                        let sample = i32::from_le_bytes(*chunk);
+                        *out_sample = sample as f32 / snapcast_proto::PCM_24BIT_MAX;
                     }
                 }
-                32 => {
-                    for (out_sample, chunk) in output.iter_mut().zip(raw_bytes.chunks_exact(4)) {
-                        let s = i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                        *out_sample = s as f32 / i32::MAX as f32;
+                BITS_PER_SAMPLE_32 => {
+                    let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_32>();
+                    for (out_sample, chunk) in output.iter_mut().zip(chunks) {
+                        let sample = i32::from_le_bytes(*chunk);
+                        *out_sample = sample as f32 / i32::MAX as f32;
                     }
                 }
                 _ => output.fill(0.0),
@@ -150,12 +113,11 @@ impl SnapcastClientHandle {
         has_audio
     }
 
-    /// Gracefully stop the Snapcast client and wait for its background task to finish.
-    pub async fn stop(&self) {
+    pub(crate) async fn stop(&self) {
         let _ = self.command_tx.send(ClientCommand::Stop).await;
-        let task = self.task.lock().unwrap_or_else(|e| e.into_inner()).take();
-        if let Some(t) = task {
-            let _ = t.await;
+        let task = self.task.lock().unwrap_or_else(|err| err.into_inner()).take();
+        if let Some(task) = task {
+            let _ = task.await;
         }
     }
 }
@@ -167,20 +129,22 @@ mod tests {
     use std::time::Duration;
     use tokio::net::TcpListener;
 
-    #[test]
-    fn default_config_uses_standard_port() {
-        let cfg = SnapcastStreamConfig::default();
-        assert_eq!(cfg.host, "127.0.0.1");
-        assert_eq!(cfg.port, 1704);
-    }
+    const TEST_BUFFER_MS: u32 = 200;
+    const TEST_CHANNELS: usize = 2;
+    const TEST_CHUNK_FRAMES: usize = 960;
+    const TEST_CHUNK_COUNT: usize = 20;
+    const TEST_SAMPLE_VALUE: f32 = 0.25;
+    const TEST_SAMPLE_RATE: u32 = 48_000;
+    const TEST_TIMEOUT: Duration = Duration::from_secs(3);
+    const POLL_INTERVAL: Duration = Duration::from_millis(20);
 
     #[tokio::test]
-    async fn client_connects_and_receives_flac_chunks_from_server() {
+    async fn client_connects_and_buffers_audio_chunks_from_server() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
 
         let (mut server, _events) = SnapServer::new(ServerConfig {
-            buffer_ms: 200,
+            buffer_ms: TEST_BUFFER_MS,
             ..ServerConfig::default()
         });
         let mut sender = server.add_f32_stream("default").unwrap();
@@ -190,29 +154,41 @@ mod tests {
         });
 
         tokio::spawn(async move {
-            let chunk = vec![0.25f32; 960 * 2];
-            for _ in 0..20 {
+            let chunk = vec![TEST_SAMPLE_VALUE; TEST_CHUNK_FRAMES * TEST_CHANNELS];
+            for _ in 0..TEST_CHUNK_COUNT {
                 if sender.send(&chunk).await.is_err() {
                     break;
                 }
             }
         });
 
-        let mut client = SnapcastClientHandle::spawn(SnapcastStreamConfig {
-            host: "127.0.0.1".into(),
-            port,
-            client_name: "Test-Amp".into(),
-            instance: 1,
-        });
+        let (client, mut event_rx) = SnapcastClientHandle::spawn("127.0.0.1".into(), port);
 
-        let frame = tokio::time::timeout(Duration::from_secs(3), client.audio_rx.recv())
-            .await
-            .expect("timed out waiting for audio frame")
-            .expect("audio channel closed");
+        let stream_format = tokio::time::timeout(TEST_TIMEOUT, async {
+            while let Some(event) = event_rx.recv().await {
+                if let ClientEvent::StreamStarted { format, .. } = event {
+                    return format;
+                }
+            }
+            panic!("event channel closed before StreamStarted");
+        })
+        .await
+        .expect("timed out waiting for StreamStarted");
 
-        assert_eq!(frame.sample_rate, 48_000);
-        assert_eq!(frame.channels, 2);
-        assert!(!frame.samples.is_empty());
+        assert_eq!(stream_format.rate(), TEST_SAMPLE_RATE);
+        assert_eq!(stream_format.channels() as usize, TEST_CHANNELS);
+
+        tokio::time::timeout(TEST_TIMEOUT, async {
+            loop {
+                let queued_chunks = client.stream.lock().unwrap().chunk_count();
+                if queued_chunks > 0 {
+                    break;
+                }
+                tokio::time::sleep(POLL_INTERVAL).await;
+            }
+        })
+        .await
+        .expect("timed out waiting for decoded audio chunks");
 
         client.stop().await;
     }
