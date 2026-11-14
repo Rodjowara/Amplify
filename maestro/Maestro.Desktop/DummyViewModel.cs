@@ -1,4 +1,5 @@
-﻿using Maestro.Core.Interfaces;
+﻿using Maestro.Core.Errors;
+using Maestro.Core.Interfaces;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -14,6 +15,9 @@ public class DummyViewModel : INotifyPropertyChanged
 
     [Qt.Ignore]
     public static IAmpManager Manager { get; set; } = null!;
+
+    [Qt.Ignore]
+    public static IErrorReporter Errors { get; set; } = null!;
 
     private int _clicks = 0;
     public int Clicks
@@ -55,21 +59,12 @@ public class DummyViewModel : INotifyPropertyChanged
         }
     }
 
-    public void Ping() => _ = PingAsync();
-
-    private async Task PingAsync()
+    public void Ping() => Errors.Run(async () =>
     {
-        try
-        {
-            // TODO: connection should be mapped to UI amp model
-            var response = await Manager.AmpList.First().PingAsync("ping");
-            PingResponse = response.Message;
-        }
-        catch (Exception ex)
-        {
-            PingResponse = ex.Message;
-        }
-    }
+        // TODO: connection should be mapped to UI amp model
+        var response = await Manager.AmpList.First().PingAsync("ping");
+        PingResponse = response.Message;
+    });
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

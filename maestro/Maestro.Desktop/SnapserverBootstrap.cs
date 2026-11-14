@@ -88,9 +88,19 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
             var stderr = (await error).Trim();
 
             // "docker" exists but its daemon isn't running (Docker Desktop not started).
-            var daemonDown = stderr.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase)
-                || stderr.Contains("docker daemon is not running", StringComparison.OrdinalIgnoreCase)
-                || stderr.Contains("error during connect", StringComparison.OrdinalIgnoreCase);
+            // The wording differs between Docker versions and platforms, e.g.
+            //   Linux:   "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?"
+            //   macOS:   "failed to connect to the docker API at unix:///... check if ... the daemon is running"
+            //   Windows: "error during connect: ..."
+            string[] daemonDownHints =
+            [
+                "Cannot connect to the Docker daemon",
+                "failed to connect to the docker API",
+                "daemon is running",
+                "docker daemon running",
+                "error during connect",
+            ];
+            var daemonDown = daemonDownHints.Any(hint => stderr.Contains(hint, StringComparison.OrdinalIgnoreCase));
 
             throw new MaestroException(
                 daemonDown ? ErrorCode.DockerNotAvailable : ErrorCode.SnapserverStartFailed,

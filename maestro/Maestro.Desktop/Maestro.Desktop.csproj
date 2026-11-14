@@ -31,7 +31,10 @@
 
   <ItemGroup>
     <None Include="Main.qml" />
+    <None Include="ErrorBanner.qml" />
+    <None Include="ErrorDialog.qml" />
     <Compile Include="DummyViewModel.cs" />
+    <Compile Include="ErrorViewModel.cs" />
     <Compile Include="PlaybackViewModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SnapserverBootstrap.cs" />

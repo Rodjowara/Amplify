@@ -18,6 +18,14 @@ ApplicationWindow {
         id: playback
     }
 
+    ErrorViewModel {
+        id: errorModel
+    }
+
+    ErrorDialog {
+        errors: errorModel
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacing.large
@@ -85,10 +93,15 @@ ApplicationWindow {
 
         Label {
             text: playback.status
-            color: '#f81414'
+            color: Theme.colors.text
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
+        }
+
+        ErrorBanner {
+            errors: errorModel
+            Layout.fillWidth: true
         }
     }
 }

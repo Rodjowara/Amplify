@@ -1,5 +1,6 @@
 using Maestro.Application.Interfaces;
 using Maestro.Application.Models;
+using Maestro.Core.Errors;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -16,8 +17,11 @@ public class PlaybackViewModel : INotifyPropertyChanged
     [Qt.Ignore]
     public static IPlaybackSource Source { get; set; } = null!;
 
+    [Qt.Ignore]
+    public static IErrorReporter Errors { get; set; } = null!;
+
     private string _status = "";
-    /// <summary>Last result or error, shown in the UI.</summary>
+    /// <summary>What is playing, shown in the UI. Errors are shown by <see cref="ErrorViewModel"/>.</summary>
     public string Status
     {
         get => _status;
@@ -31,21 +35,12 @@ public class PlaybackViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Called from QML. Starts playback without blocking the UI thread.</summary>
-    public void Play(string path) => _ = PlayAsync(path);
-
-    private async Task PlayAsync(string path)
+    public void Play(string path) => Errors.Run(async () =>
     {
-        try
-        {
-            var track = Track.FromFile(path.Trim());
-            await Source.PlayAsync(track);
-            Status = $"Playing: {track.Title}";
-        }
-        catch (Exception ex)
-        {
-            Status = ex.Message;
-        }
-    }
+        var track = Track.FromFile(path.Trim());
+        await Source.PlayAsync(track);
+        Status = $"Playing: {track.Title}";
+    });
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

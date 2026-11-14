@@ -14,8 +14,8 @@ namespace Maestro.Infrastructure.Services.Playback;
 /// Failures while starting throw <see cref="MaestroException"/>; failures while playing go to <paramref name="reporter"/>.
 /// </summary>
 /// <param name="stream">The snapserver stream to send the audio to.</param>
-/// <param name="reporter">Receives errors that happen in the background. Falls back to stderr if null.</param>
-public sealed class LocalFileSource(SnapcastStreamOptions stream, IErrorReporter? reporter = null)
+/// <param name="reporter">Receives errors that happen in the background.</param>
+public sealed class LocalFileSource(SnapcastStreamOptions stream, IErrorReporter reporter)
     : IPlaybackSource, IAsyncDisposable
 {
     // Makes sure only one PlayAsync/Stop runs at a time.
@@ -157,10 +157,7 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, IErrorReporter
                     $"Stream to snapserver ended: {ex.Message}",
                     inner: ex);
 
-                if (reporter is not null)
-                    reporter.Report(error, ErrorSeverity.Warning);
-                else
-                    Console.Error.WriteLine($"[LocalFileSource] {error.Message}");
+                reporter.Report(error, ErrorSeverity.Warning);
             }
             finally
             {
