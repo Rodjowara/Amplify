@@ -2,6 +2,7 @@ using Maestro.Application.Models;
 using Maestro.Core.Interfaces;
 using Maestro.Core.Services;
 using Maestro.Desktop;
+using Maestro.Desktop.ViewModels;
 using Maestro.Infrastructure.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
 using Qt.Quick;
@@ -17,11 +18,11 @@ var services = new ServiceCollection();
 services.AddSingleton<IAmpManager, AmpManager>();
 
 using var provider = services.BuildServiceProvider();
+MaestroServices.ServiceProvider = provider;
 
 // TEST
 var manager = provider.GetService<IAmpManager>()!;
 manager.Add("http://127.0.0.1:50051");
-DummyViewModel.Manager = manager;
 
 await using var localSource = new LocalFileSource(localStream);
 PlaybackViewModel.Source = localSource;
