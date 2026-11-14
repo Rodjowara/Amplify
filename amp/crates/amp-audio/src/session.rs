@@ -53,7 +53,6 @@ impl StreamSession {
         let synced = handle.synced_stream();
         let (stop_tx, mut stop_rx) = oneshot::channel();
 
-        // Keep the client's channels drained so it never blocks on a full queue.
         let task = tokio::spawn(async move {
             loop {
                 tokio::select! {
