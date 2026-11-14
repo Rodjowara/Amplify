@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Maestro.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Protos\" />
   </ItemGroup>
 
