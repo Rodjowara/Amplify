@@ -1,55 +1,75 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::time::Duration;
 
+use amp_audio::session::{PlayerSlot, StreamSession};
+use amp_audio::snapcast::SnapcastStreamConfig;
+use amp_core::state::{SharedState, StreamConfig};
+use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
-use crate::proto::amp::{
-    amp_service_server::AmpService, AmpState, GetStateRequest, SetStreamRequest,
-};
+use crate::proto::amp::{amp_service_server::AmpService, HandshakeRequest, HandshakeResponse};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AmpHandler {
-    state: Arc<Mutex<AmpState>>,
+    state: SharedState,
+    slot: PlayerSlot,
+    session: Arc<Mutex<Option<StreamSession>>>, // tokio::sync::Mutex
 }
 
 impl AmpHandler {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            state: Arc::new(Mutex::new(AmpState {
-                name: name.into(),
-                stream: None,
-            })),
-        }
+    pub fn new(state: SharedState, slot: PlayerSlot) -> Self {
+        Self { state, slot, session: Arc::new(Mutex::new(None)) }
     }
 }
 
 #[tonic::async_trait]
 impl AmpService for AmpHandler {
-    async fn get_state(
+    async fn handshake(
         &self,
-        _request: Request<GetStateRequest>,
-    ) -> Result<Response<AmpState>, Status> {
-        let state = self.state.lock().expect("state lock poisoned").clone();
-        Ok(Response::new(state))
-    }
+        request: Request<HandshakeRequest>,
+    ) -> Result<Response<HandshakeResponse>, Status> {
+        let req = request.into_inner();
 
-    async fn set_stream(
-        &self,
-        request: Request<SetStreamRequest>,
-    ) -> Result<Response<AmpState>, Status> {
-        let stream = request
-            .into_inner()
-            .stream
-            .ok_or_else(|| Status::invalid_argument("stream is required"))?;
-
-        if stream.host.trim().is_empty() {
-            return Err(Status::invalid_argument("host must not be empty"));
+        if req.snapcast_host.trim().is_empty() {
+            return Err(Status::invalid_argument("snapcast_host must not be empty"));
         }
-        if stream.port == 0 || stream.port > 65535 {
-            return Err(Status::invalid_argument("port must be between 1 and 65535"));
-        }
+        let port = u16::try_from(req.snapcast_port)
+            .ok()
+            .filter(|p| *p != 0)
+            .ok_or_else(|| Status::invalid_argument("snapcast_port must be between 1 and 65535"))?;
 
-        let mut state = self.state.lock().expect("state lock poisoned");
-        state.stream = Some(stream);
-        Ok(Response::new(state.clone()))
+        let mut session = self.session.lock().await;
+
+        // Silence the output first, then stop the old stream and clear the old config.
+        *self.slot.lock().expect("slot lock poisoned") = None;
+        if let Some(old) = session.take() {
+            old.stop().await;
+        }
+        self.state.write().expect("state lock poisoned").stream = None;
+
+        let config = SnapcastStreamConfig {
+            host: req.snapcast_host.clone(),
+            port,
+            ..Default::default() // client name "Amplify-Amp", instance 1
+        };
+
+        let response = match StreamSession::start(config, Duration::from_secs(5)).await {
+            Ok(s) => {
+                // Let the audio output start playing this stream.
+                *self.slot.lock().expect("slot lock poisoned") = Some(s.synced.clone());
+                *session = Some(s);
+                self.state.write().expect("state lock poisoned").stream = Some(StreamConfig {
+                    host: req.snapcast_host,
+                    port,
+                });
+                HandshakeResponse { success: true, error: None }
+            }
+            Err(e) => {
+                eprintln!("failed to connect to snapserver: {e}");
+                HandshakeResponse { success: false, error: Some(e) }
+            }
+        };
+
+        Ok(Response::new(response))
     }
 }

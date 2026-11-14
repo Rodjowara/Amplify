@@ -10,6 +10,8 @@ snapcast-proto = "0.18"
 cpal = "0.15"
 fundsp = "0.20"
 tokio = { version = "1", features = ["full"] }
+amp-core = { path = "../amp-core" }
+amp-ui = { path = "../amp-ui" }
 
 [dev-dependencies]
 snapcast-server = "0.18"

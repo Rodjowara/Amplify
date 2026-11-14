@@ -6,9 +6,6 @@ option csharp_namespace = "Amplify.Amp";
 
 service AmpService {
 	rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
-
-  //rpc GetState (GetStateRequest) returns (AmpState);
-  //rpc SetStream (SetStreamRequest) returns (AmpState);
 }
 
 message HandshakeRequest
@@ -22,20 +19,3 @@ message HandshakeResponse
 	bool success = 1;
 	optional string error = 2;
 }
-
-/*
-message StreamInfo {
-  string host = 1;
-  uint32 port = 2;
-}
-
-message AmpState {
-  string name = 1;
-  StreamInfo stream = 2;
-}
-
-message GetStateRequest {}
-
-message SetStreamRequest {
-  StreamInfo stream = 1;
-}*/

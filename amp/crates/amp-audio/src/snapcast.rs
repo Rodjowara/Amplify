@@ -76,6 +76,27 @@ impl SnapcastClientHandle {
         }
     }
 
+    /// Gracefully stop the Snapcast client and wait for its background task to finish.
+    pub async fn stop(self) {
+        let _ = self.command_tx.send(ClientCommand::Stop).await;
+        let _ = self.task.await;
+    }
+
+    pub fn synced_stream(&self) -> SyncedStream {
+        SyncedStream {
+            time_provider: Arc::clone(&self.time_provider),
+            stream: Arc::clone(&self.stream),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct SyncedStream{
+    time_provider: Arc<Mutex<TimeProvider>>,
+    stream: Arc<Mutex<Stream>>,
+}
+
+impl SyncedStream{
     /// Estimated current server timestamp in microseconds (`now_usec + diff_to_server_usec`).
     pub fn server_now_usec(&self) -> i64 {
         let diff = self
@@ -143,11 +164,5 @@ impl SnapcastClientHandle {
         }
 
         has_audio
-    }
-
-    /// Gracefully stop the Snapcast client and wait for its background task to finish.
-    pub async fn stop(self) {
-        let _ = self.command_tx.send(ClientCommand::Stop).await;
-        let _ = self.task.await;
     }
 }
