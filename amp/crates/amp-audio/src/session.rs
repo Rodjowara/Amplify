@@ -5,14 +5,14 @@ use snapcast_client::ClientEvent;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-use crate::snapcast::{SnapcastClientHandle, SnapcastStreamConfig, SyncedStream};
+use crate::snapcast::SnapcastClientHandle;
 
 /// The stream the audio output should play right now (None = silence).
-pub type PlayerSlot = Arc<Mutex<Option<SyncedStream>>>;
+pub type PlayerSlot = Arc<Mutex<Option<Arc<SnapcastClientHandle>>>>;
 
 pub struct StreamSession {
     /// Handed to the audio output so it can pull time-synchronized samples.
-    pub synced: SyncedStream,
+    pub handle: Arc<SnapcastClientHandle>,
     stop_tx: Option<oneshot::Sender<()>>,
     task: JoinHandle<()>,
 }
@@ -20,13 +20,14 @@ pub struct StreamSession {
 impl StreamSession {
     /// Connects to the snapserver. Returns Ok only once the client reports `Connected`.
     pub async fn start(
-        config: SnapcastStreamConfig,
+        host: String,
+        port: u16,
         connect_timeout: Duration,
     ) -> Result<Self, String> {
-        let mut handle = SnapcastClientHandle::spawn(config);
+        let (handle, mut event_rx) = SnapcastClientHandle::spawn(host, port);
 
         let wait_for_connect = async {
-            while let Some(ev) = handle.event_rx.recv().await {
+            while let Some(ev) = event_rx.recv().await {
                 match ev {
                     ClientEvent::Connected { .. } => return Ok(()),
                     ClientEvent::Disconnected { reason } => {
@@ -50,21 +51,21 @@ impl StreamSession {
             }
         }
 
-        let synced = handle.synced_stream();
+        let handle = Arc::new(handle);
+        let task_handle = Arc::clone(&handle);
         let (stop_tx, mut stop_rx) = oneshot::channel();
 
         let task = tokio::spawn(async move {
             loop {
                 tokio::select! {
                     _ = &mut stop_rx => break,
-                    ev = handle.event_rx.recv() => { if ev.is_none() { break; } }
-                    frame = handle.audio_rx.recv() => { if frame.is_none() { break; } }
+                    ev = event_rx.recv() => { if ev.is_none() { break; } }
                 }
             }
-            handle.stop().await;
+            task_handle.stop().await;
         });
 
-        Ok(Self { synced, stop_tx: Some(stop_tx), task })
+        Ok(Self { handle, stop_tx: Some(stop_tx), task })
     }
 
     pub async fn stop(mut self) {

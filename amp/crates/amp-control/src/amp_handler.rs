@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use amp_audio::session::{PlayerSlot, StreamSession};
-use amp_audio::snapcast::SnapcastStreamConfig;
 use amp_core::state::{SharedState, StreamConfig};
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
@@ -47,16 +46,10 @@ impl AmpService for AmpHandler {
         }
         self.state.write().expect("state lock poisoned").stream = None;
 
-        let config = SnapcastStreamConfig {
-            host: req.snapcast_host.clone(),
-            port,
-            ..Default::default() // client name "Amplify-Amp", instance 1
-        };
-
-        let response = match StreamSession::start(config, Duration::from_secs(5)).await {
+        let response = match StreamSession::start(req.snapcast_host.clone(), port, Duration::from_secs(5)).await {
             Ok(s) => {
                 // Let the audio output start playing this stream.
-                *self.slot.lock().expect("slot lock poisoned") = Some(s.synced.clone());
+                *self.slot.lock().expect("slot lock poisoned") = Some(Arc::clone(&s.handle));
                 *session = Some(s);
                 self.state.write().expect("state lock poisoned").stream = Some(StreamConfig {
                     host: req.snapcast_host,
