@@ -48,8 +48,9 @@ public class DummyViewModel : INotifyPropertyChanged
         try
         {
             // TODO: connection should be mapped to UI amp model
-            var response = await Manager.AmpList.First().PingAsync("ping");
-            PingResponse = response.Message;
+            var amp = Manager.AmpList.First();
+            await amp.HandshakeAsync();
+            PingResponse = $"Connected to {amp.Host}:{amp.Port}";
         }
         catch (Exception ex)
         {

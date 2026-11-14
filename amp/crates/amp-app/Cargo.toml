@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 amp-ui = { path = "../amp-ui" }
 amp-control = { path = "../amp-control" }
+amp-core = {path = "../amp-core"}
+amp-audio = {path = "../amp-audio"}

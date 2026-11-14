@@ -2,6 +2,7 @@ mod backend;
 mod models;
 
 use std::path::PathBuf;
+use amp_core::state::SharedState;
 use qtbridge::QApp;
 
 // Files of shared/qml, embedded at build time by build.rs.
@@ -20,7 +21,7 @@ fn extract_shared_qml() -> std::io::Result<PathBuf> {
     Ok(dir)
 }
 
-pub fn run() {
+pub fn run(_state: SharedState) {
     // let shared_qml = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../shared/qml");
     let shared_qml = extract_shared_qml().expect("failed to extract the shared QML files");
 

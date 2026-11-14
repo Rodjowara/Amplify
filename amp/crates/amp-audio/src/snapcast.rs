@@ -14,7 +14,7 @@ const BITS_PER_SAMPLE_32: u16 = 32;
 const BYTES_PER_SAMPLE_16: usize = 2;
 const BYTES_PER_SAMPLE_32: usize = 4;
 
-pub(crate) struct SnapcastClientHandle {
+pub struct SnapcastClientHandle {
     command_tx: mpsc::Sender<ClientCommand>,
     time_provider: Arc<Mutex<TimeProvider>>,
     stream: Arc<Mutex<Stream>>,
@@ -117,6 +117,7 @@ impl SnapcastClientHandle {
         let _ = self.command_tx.send(ClientCommand::Stop).await;
         let task = self.task.lock().unwrap_or_else(|err| err.into_inner()).take();
         if let Some(task) = task {
+            task.abort();
             let _ = task.await;
         }
     }
