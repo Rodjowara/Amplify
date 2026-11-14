@@ -117,6 +117,7 @@ impl SnapcastClientHandle {
         let _ = self.command_tx.send(ClientCommand::Stop).await;
         let task = self.task.lock().unwrap_or_else(|err| err.into_inner()).take();
         if let Some(task) = task {
+            task.abort();
             let _ = task.await;
         }
     }
