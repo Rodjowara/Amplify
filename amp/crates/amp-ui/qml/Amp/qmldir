@@ -1,0 +1,6 @@
+module Amp
+Sidebar 1.0 Sidebar.qml
+NowPlayingPage 1.0 pages/NowPlayingPage.qml
+ChannelPage 1.0 pages/ChannelPage.qml
+LevelsPage 1.0 pages/LevelsPage.qml
+EqualizerPage 1.0 pages/EqualizerPage.qml
