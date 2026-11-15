@@ -5,10 +5,9 @@ use std::path::PathBuf;
 use amp_core::state::SharedState;
 use qtbridge::QApp;
 
-// Files of shared/qml and of the amp's QML module, embedded at build time by build.rs.
 include!(concat!(env!("OUT_DIR"), "/embedded_qml.rs"));
 
-// Writes embedded QML files to a temp folder and returns that folder.
+// Embedded so the binary runs alone (e.g. on the Pi); Qt imports the modules from this temp folder
 fn extract_qml(files: &[(&str, &[u8])], folder_name: &str) -> std::io::Result<PathBuf> {
     let dir = std::env::temp_dir().join(folder_name);
     for (relative_path, bytes) in files {
