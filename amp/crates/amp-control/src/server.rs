@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 use std::thread::{self, JoinHandle};
 
+use amp_audio::session::PlayerSlot;
+use amp_core::state::SharedState;
 use tonic::transport::Server;
 
 use crate::amp_handler::AmpHandler;
@@ -8,17 +10,20 @@ use crate::handlers::DummyHandler;
 use crate::proto::amp::amp_service_server::AmpServiceServer;
 use crate::proto::dummy::dummy_service_server::DummyServiceServer;
 
-pub async fn serve(addr: SocketAddr) -> Result<(), tonic::transport::Error> {
+pub async fn serve(
+    addr: SocketAddr,
+    state: SharedState,
+    slot: PlayerSlot,
+) -> Result<(), tonic::transport::Error> {
     Server::builder()
         .add_service(DummyServiceServer::new(DummyHandler))
-            //Amp is a temporary name for the device
-        .add_service(AmpServiceServer::new(AmpHandler::new("Amp")))
+        .add_service(AmpServiceServer::new(AmpHandler::new(state, slot)))
         .serve(addr)
         .await
 }
 
 /// Runs the gRPC server on its own thread with its own tokio runtime.
-pub fn spawn(addr: SocketAddr) -> JoinHandle<()> {
+pub fn spawn(addr: SocketAddr, state: SharedState, slot: PlayerSlot) -> JoinHandle<()> {
     thread::Builder::new()
         .name("amp-control".into())
         .spawn(move || {
@@ -27,7 +32,7 @@ pub fn spawn(addr: SocketAddr) -> JoinHandle<()> {
                 .build()
                 .expect("failed to build tokio runtime");
 
-            if let Err(e) = runtime.block_on(serve(addr)) {
+            if let Err(e) = runtime.block_on(serve(addr, state, slot)) {
                 eprintln!("gRPC server stopped: {e}");
             }
         })

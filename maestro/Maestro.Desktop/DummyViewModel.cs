@@ -32,20 +32,6 @@ public class DummyViewModel : INotifyPropertyChanged
         }
     }
 
-    // TODO: start/stop the playback source once it exists (#75).
-    private bool _playing = false;
-    public bool Playing
-    {
-        get => _playing;
-        set
-        {
-            if (_playing == value)
-                return;
-            _playing = value;
-            OnPropertyChanged();
-        }
-    }
-
     private string _pingResponse = "";
     public string PingResponse
     {
@@ -62,8 +48,9 @@ public class DummyViewModel : INotifyPropertyChanged
     public void Ping() => Errors.Run(async () =>
     {
         // TODO: connection should be mapped to UI amp model
-        var response = await Manager.AmpList.First().PingAsync("ping");
-        PingResponse = response.Message;
+        var amp = Manager.AmpList.First();
+        await amp.HandshakeAsync();
+        PingResponse = $"Connected to {amp.Host}:{amp.Port}";
     });
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)

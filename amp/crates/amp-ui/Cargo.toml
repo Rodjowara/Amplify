@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 qtbridge = "0.4"
+amp-core = { path = "../amp-core" }
