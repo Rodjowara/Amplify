@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package amplify.amp;
+
+option csharp_namespace = "Amplify.Amp";
+
+service AmpService {
+	rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
+}
+
+message HandshakeRequest
+{
+	string snapcast_host = 1;
+	uint32 snapcast_port = 2;
+}
+
+message HandshakeResponse 
+{
+	bool success = 1;
+	optional string error = 2;
+}

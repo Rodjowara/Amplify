@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "Dummy.Server": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Kestrel__EndpointDefaults__Protocols": "Http2"
+      },
+      "applicationUrl": "http://localhost:5000"
+    }
+  }
+}
