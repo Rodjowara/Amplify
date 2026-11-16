@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-// Embeds every file of shared/qml and of the amp's own QML module in the Amp binary.
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let shared_qml = manifest_dir.join("../../../shared/qml");
