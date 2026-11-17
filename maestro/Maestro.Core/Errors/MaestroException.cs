@@ -22,8 +22,8 @@ public class MaestroException : Exception
     {
     }
 
-    public MaestroException(RpcException exception, string amp)
-        : this(ToErrorCode(exception.StatusCode), new { amp, message = exception.Status.Detail }, exception)
+    public MaestroException(RpcException exception, object? arguments)
+        : this(ToErrorCode(exception.StatusCode), arguments, exception)
     {
     }
 

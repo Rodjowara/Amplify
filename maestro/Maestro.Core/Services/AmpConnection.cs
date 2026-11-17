@@ -53,7 +53,7 @@ public class AmpConnection : IDisposable
         }
         catch (RpcException exception)
         {
-            throw new MaestroException(exception, Address);
+            throw new MaestroException(exception, new { amp = Address, message = exception.Status.Detail });
         }
 
         if (!response.Success)
