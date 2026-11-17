@@ -6,7 +6,7 @@ fn main() {
     let state = SharedState::default();
     let slot = PlayerSlot::default();
 
-    let _audio = start_output(slot.clone());
+    start_output(slot.clone());
 
     let addr = "0.0.0.0:50051".parse().expect("invalid listen address");
     amp_control::server::spawn(addr, state.clone(), slot.clone());

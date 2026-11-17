@@ -1909,8 +1909,7 @@ checksum = "d0d5d4b1981b8bbbb7aed204cae5726d683d5d6ac7e74ec54122ea28f315e7c8"
 [[package]]
 name = "snapcast-client"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7637b5f1918402d2deaee98aa792798887501805082cf59503144107c57ccd73"
+source = "git+https://github.com/matej-jurisic/snapcast-rs?branch=fix%2Fcancel-safe-recv#774f97b9f46dc5e910123f39f61507919d711f1b"
 dependencies = [
  "anyhow",
  "hostname",
@@ -1926,8 +1925,7 @@ dependencies = [
 [[package]]
 name = "snapcast-proto"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87aa0b938f9791ca63d864930ec95751514e5c4a9e7f7f3f8c9a40d4f9c65aa7"
+source = "git+https://github.com/matej-jurisic/snapcast-rs?branch=fix%2Fcancel-safe-recv#774f97b9f46dc5e910123f39f61507919d711f1b"
 dependencies = [
  "byteorder",
  "libc",
@@ -1939,8 +1937,7 @@ dependencies = [
 [[package]]
 name = "snapcast-server"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a7193273f6b95a4ece4ed3a079d2424814707f1fb74c7bf2fc79a4093ca02a2"
+source = "git+https://github.com/matej-jurisic/snapcast-rs?branch=fix%2Fcancel-safe-recv#774f97b9f46dc5e910123f39f61507919d711f1b"
 dependencies = [
  "anyhow",
  "base64",

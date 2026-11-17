@@ -130,7 +130,7 @@ fn open_cpal_stream(
     Some(stream)
 }
 
-fn dac_delay_usec(callback_info: &cpal::OutputCallbackInfo) -> i64 {
+pub(crate) fn dac_delay_usec(callback_info: &cpal::OutputCallbackInfo) -> i64 {
     let timestamps = callback_info.timestamp();
     timestamps
         .playback

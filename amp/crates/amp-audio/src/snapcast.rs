@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use snapcast_client::{
-    ClientCommand, ClientConfig, ClientEvent, SnapClient,
+    ClientCommand, ClientConfig, ClientEvent, SampleFormat, SnapClient,
     stream::{SampleEncoding, Stream},
     time_provider::TimeProvider,
 };
@@ -47,6 +47,10 @@ impl SnapcastClientHandle {
             },
             event_rx,
         )
+    }
+
+    pub(crate) fn format(&self) -> SampleFormat {
+        self.stream.lock().unwrap_or_else(|err| err.into_inner()).format()
     }
 
     pub(crate) fn pull_synced_f32(&self, output: &mut [f32], dac_latency_usec: i64) -> bool {

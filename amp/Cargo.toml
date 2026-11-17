@@ -6,3 +6,8 @@ members = [
     "crates/amp-control",
     "crates/amp-audio",
 ]
+
+[patch.crates-io]
+snapcast-client = { git = "https://github.com/matej-jurisic/snapcast-rs", branch = "fix/cancel-safe-recv" }
+snapcast-proto = { git = "https://github.com/matej-jurisic/snapcast-rs", branch = "fix/cancel-safe-recv" }
+snapcast-server = { git = "https://github.com/matej-jurisic/snapcast-rs", branch = "fix/cancel-safe-recv" }

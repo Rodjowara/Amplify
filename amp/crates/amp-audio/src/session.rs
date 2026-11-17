@@ -59,7 +59,13 @@ impl StreamSession {
             loop {
                 tokio::select! {
                     _ = &mut stop_rx => break,
-                    ev = event_rx.recv() => { if ev.is_none() { break; } }
+                    ev = event_rx.recv() => match ev {
+                        Some(ClientEvent::Disconnected { reason }) => {
+                            eprintln!("[Snapcast] disconnected: {reason}")
+                        }
+                        Some(_) => {}
+                        None => break,
+                    },
                 }
             }
             task_handle.stop().await;
