@@ -34,9 +34,9 @@ public class SpotifyConnection
 
     private async Task<string> GetSpotifyCodeAsync(string challenge, CancellationToken ct = default)
     {
-        var code = new TaskCompletionSource<string>();
-        var server = new EmbedIOAuthServer(_options.RedirectUri, _options.RedirectPort);
+        var code = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        using var server = new EmbedIOAuthServer(_options.RedirectUri, _options.RedirectPort);
         server.AuthorizationCodeReceived += (_, response) =>
         {
             code.TrySetResult(response.Code);
@@ -44,28 +44,22 @@ public class SpotifyConnection
         };
 
         await server.Start();
-        try
-        {
-            var scopes = new[]
+
+        var scopes = new[]
             {
-                Scopes.UserReadPrivate 
+                Scopes.UserReadPrivate
             };
 
-            var request = new LoginRequest(_options.RedirectUri, _options.ClientId, LoginRequest.ResponseType.Code)
-            {
-                CodeChallengeMethod = "S256",
-                CodeChallenge = challenge,
-                Scope = scopes
-            };
-
-            BrowserUtil.Open(request.ToUri());
-
-            return await code.Task.WaitAsync(ct);
-        }
-        finally
+        var request = new LoginRequest(_options.RedirectUri, _options.ClientId, LoginRequest.ResponseType.Code)
         {
-            await server.Stop();
-        }
+            CodeChallengeMethod = "S256",
+            CodeChallenge = challenge,
+            Scope = scopes
+        };
+
+        BrowserUtil.Open(request.ToUri());
+
+        return await code.Task.WaitAsync(ct);
     }
 
 }
