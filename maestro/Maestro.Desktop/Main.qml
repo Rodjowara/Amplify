@@ -39,6 +39,10 @@ ApplicationWindow {
         id: nav
     }
 
+    ErrorViewModel {
+        id: errorModel
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -77,5 +81,10 @@ ApplicationWindow {
             Layout.fillWidth: true
             onPlayPauseClicked: playback.togglePlaying()
         }
+    }
+
+    ErrorView {
+        errors: errorModel
+        anchors.fill: parent
     }
 }

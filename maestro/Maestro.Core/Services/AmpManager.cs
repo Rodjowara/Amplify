@@ -10,7 +10,6 @@ public class AmpManager : IAmpManager, IDisposable
 
     public void Add(string connectionString)
     {
-        // TODO: error handling
         var amp = new AmpConnection(connectionString);
         _amps.Add(amp);
     }
