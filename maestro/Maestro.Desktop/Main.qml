@@ -76,6 +76,7 @@ ApplicationWindow {
 
         // TODO: previous/next, shuffle/repeat, seek and volume need backend support (playlist, master volume).
         PlaybackDock {
+            id: dock
             title: playback.trackTitle
             playing: playback.playing
             Layout.fillWidth: true
@@ -85,6 +86,7 @@ ApplicationWindow {
 
     ErrorView {
         errors: errorModel
+        bannerBottomMargin: dock.height
         anchors.fill: parent
     }
 }
