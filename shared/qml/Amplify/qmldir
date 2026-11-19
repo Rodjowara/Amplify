@@ -2,6 +2,7 @@ module Amplify
 singleton Theme 1.0 Theme.qml
 singleton Icons 1.0 Icons.qml
 AmplifyButton 1.0 AmplifyButton.qml
+AmplifyCheckBox 1.0 AmplifyCheckBox.qml
 AmplifyPlayPauseButton 1.0 AmplifyPlayPauseButton.qml
 AmplifyNavButton 1.0 AmplifyNavButton.qml
 AmplifySlider 1.0 AmplifySlider.qml

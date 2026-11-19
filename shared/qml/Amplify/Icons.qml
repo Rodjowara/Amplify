@@ -16,4 +16,5 @@ QtObject {
     readonly property url music: Qt.resolvedUrl("icons/music.svg")
     readonly property url channel: Qt.resolvedUrl("icons/channel.svg")
     readonly property url equalizer: Qt.resolvedUrl("icons/equalizer.svg")
+    readonly property url check: Qt.resolvedUrl("icons/check.svg")
 }
