@@ -2,10 +2,16 @@ import QtQuick
 import Amplify
 
 Item {
-    Text {
+    Row {
         anchors.centerIn: parent
-        text: qsTr("Channel")
-        color: Theme.colors.text
-        font.pixelSize: Theme.fontSize.large
+        spacing: Theme.spacing.large
+
+        AmplifyCheckBox {
+            text: qsTr("Mute")
+        }
+
+        AmplifyCheckBox {
+            text: qsTr("Solo")
+        }
     }
 }
