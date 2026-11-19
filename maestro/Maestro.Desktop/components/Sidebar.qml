@@ -70,7 +70,17 @@ Rectangle {
             }
         }
 
+        Label {
+            visible: ampList.count === 0
+            text: qsTr("No amps yet. Add one with +.")
+            color: Theme.colors.textSubtle
+            font.pixelSize: Theme.fontSize.small
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
         ListView {
+            id: ampList
             clip: true
             spacing: 2
             model: root.vm.amps

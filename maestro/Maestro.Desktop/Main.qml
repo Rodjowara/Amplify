@@ -55,8 +55,7 @@ ApplicationWindow {
             Sidebar {
                 vm: nav
                 Layout.fillHeight: true
-                // TODO: open the Add amp card once it exists.
-                onAddAmpRequested: console.log("Add amp: not implemented yet")
+                onAddAmpRequested: addAmpDialog.open()
             }
 
             // One page per nav.currentPage
@@ -82,6 +81,11 @@ ApplicationWindow {
             Layout.fillWidth: true
             onPlayPauseClicked: playback.togglePlaying()
         }
+    }
+
+    AddAmpDialog {
+        id: addAmpDialog
+        vm: nav
     }
 
     ErrorView {

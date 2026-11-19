@@ -5,6 +5,7 @@ QtObject {
     function text(code, argument) {
         switch (code) {
         case "InvalidAmpAddress": return qsTr("\"%1\" is not a valid amp address.").arg(argument("address"))
+        case "AmpAlreadyAdded": return qsTr("An amp with the address %1 is already added.").arg(argument("address"))
         case "AmpUnreachable": return qsTr("Can't reach amp %1. Check that it is on and in the same network.").arg(argument("amp"))
         case "AmpTimeout": return qsTr("Amp %1 did not answer in time.").arg(argument("amp"))
         case "AmpRejectedRequest": return qsTr("Amp %1 rejected the request.").arg(argument("amp"))
