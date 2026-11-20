@@ -27,6 +27,10 @@ ApplicationWindow {
         toolTipText: Theme.colors.text
     }
 
+    QtSynchronizationContext {
+        onPendingChanged: execute()
+    }
+
     DummyViewModel {
         id: dummy
     }

@@ -42,14 +42,6 @@ public class DummyViewModel : BaseViewModel, INotifyPropertyChanged
         }
     }
 
-    public void Ping() => _errors.Run(async () =>
-    {
-        // TODO: connection should be mapped to UI amp model
-        var amp = _manager.AmpList.First();
-        await amp.HandshakeAsync();
-        PingResponse = $"Connected to {amp.Host}:{amp.Port}";
-    });
-
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
