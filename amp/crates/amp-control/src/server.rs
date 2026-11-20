@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::thread::{self, JoinHandle};
 
-use amp_audio::session::PlayerSlot;
+use amp_audio::output::PlayerSlot;
 use amp_core::state::SharedState;
 use tonic::transport::Server;
 

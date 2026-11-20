@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use amp_core::state::SharedState;
 use amp_audio::output::start_output;
-use amp_audio::session::PlayerSlot;
+use amp_audio::output::PlayerSlot;
 
 const CONTROL_PORT: u16 = 50051;
 

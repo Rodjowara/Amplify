@@ -2,7 +2,7 @@ mod common;
 
 use amp_control::proto::amp::HandshakeRequest;
 use amp_core::state::{SharedState, StreamConfig};
-use amp_audio::session::PlayerSlot;
+use amp_audio::output::PlayerSlot;
 use common::*;
 
 struct Fixture {

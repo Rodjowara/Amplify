@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use snapcast_client::{
     ClientCommand, ClientConfig, ClientEvent, SnapClient,
@@ -18,7 +19,33 @@ pub struct SnapcastClientHandle {
 }
 
 impl SnapcastClientHandle {
-    pub(crate) fn spawn(host: String, port: u16) -> (Self, mpsc::Receiver<ClientEvent>) {
+    pub async fn connect(host: String, port: u16, timeout: Duration) -> Result<Self, String> {
+        let (handle, mut event_rx) = Self::spawn(host, port);
+
+        let wait_for_connect = async {
+            while let Some(event) = event_rx.recv().await {
+                match event {
+                    ClientEvent::Connected { .. } => return Ok(()),
+                    ClientEvent::Disconnected { reason } => {
+                        return Err(format!("disconnected: {reason}"))
+                    }
+                    _ => {}
+                }
+            }
+            Err("client stopped before connecting".to_string())
+        };
+
+        let result = tokio::time::timeout(timeout, wait_for_connect)
+            .await
+            .unwrap_or_else(|_| Err("timed out connecting to the snapserver".into()));
+        if let Err(error) = result {
+            handle.stop().await;
+            return Err(error);
+        }
+        Ok(handle)
+    }
+
+    fn spawn(host: String, port: u16) -> (Self, mpsc::Receiver<ClientEvent>) {
         let client_config = ClientConfig {
             host,
             port,
@@ -85,7 +112,7 @@ impl SnapcastClientHandle {
         }
     }
 
-    pub(crate) async fn stop(&self) {
+    pub async fn stop(&self) {
         let _ = self.command_tx.send(ClientCommand::Stop).await;
         self.task.abort();
     }
@@ -95,7 +122,6 @@ impl SnapcastClientHandle {
 mod tests {
     use super::*;
     use snapcast_server::{ServerConfig, SnapServer};
-    use std::time::Duration;
     use tokio::net::TcpListener;
 
     const TEST_CHANNELS: usize = 2;

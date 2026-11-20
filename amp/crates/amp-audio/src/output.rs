@@ -1,6 +1,10 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-use crate::session::PlayerSlot;
+use std::sync::{Arc, Mutex};
+
+use crate::snapcast::SnapcastClientHandle;
+
+pub type PlayerSlot = Arc<Mutex<Option<Arc<SnapcastClientHandle>>>>;
 
 pub fn start_output(slot: PlayerSlot) -> Option<cpal::Stream> {
     let device = cpal::default_host().default_output_device()?;
