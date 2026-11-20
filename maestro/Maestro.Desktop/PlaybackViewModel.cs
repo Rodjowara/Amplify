@@ -1,6 +1,8 @@
 using Maestro.Application.Interfaces;
 using Maestro.Application.Models;
 using Maestro.Core.Errors;
+using Maestro.Desktop.ViewModels;
+using Maestro.Infrastructure.Services.Playback;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -9,16 +11,12 @@ namespace Maestro.Desktop;
 
 /// <summary>Debug UI for testing playback: play a local file path through the injected source.</summary>
 [QmlElement]
-public class PlaybackViewModel : INotifyPropertyChanged
+public class PlaybackViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    // Set in Program.cs (same static pattern as DummyViewModel, since QML creates the instance).
-    [Qt.Ignore]
-    public static IPlaybackSource Source { get; set; } = null!;
-
-    [Qt.Ignore]
-    public static ErrorReporter Errors { get; set; } = null!;
+    private readonly IPlaybackSource _source = GetRequiredService<LocalFileSource>();
+    private readonly ErrorReporter _errors = GetRequiredService<ErrorReporter>();
 
     public string TrackPath { get; set; } = "";
 
@@ -52,11 +50,11 @@ public class PlaybackViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Called from QML. Starts playback without blocking the UI thread.</summary>
-    public void Play(string path) => Errors.Run(async () =>
+    public void Play(string path) => _errors.Run(async () =>
     {
         var trimmedPath = path.Trim();
         var track = Track.FromFile(trimmedPath);
-        await Source.PlayAsync(track);
+        await _source.PlayAsync(track);
         _loadedPath = trimmedPath;
         TrackTitle = track.Title;
         Playing = true;
@@ -66,9 +64,9 @@ public class PlaybackViewModel : INotifyPropertyChanged
     {
         if (Playing)
         {
-            Errors.Run(async () =>
+            _errors.Run(async () =>
             {
-                await Source.PauseAsync();
+                await _source.PauseAsync();
                 Playing = false;
             });
             return;
@@ -78,9 +76,9 @@ public class PlaybackViewModel : INotifyPropertyChanged
         if (path != "" && path != _loadedPath)
             Play(path);
         else if (_loadedPath != "")
-            Errors.Run(async () =>
+            _errors.Run(async () =>
             {
-                await Source.ResumeAsync();
+                await _source.ResumeAsync();
                 Playing = true;
             });
     }
