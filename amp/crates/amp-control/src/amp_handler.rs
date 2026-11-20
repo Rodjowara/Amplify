@@ -21,8 +21,6 @@ impl AmpHandler {
     }
 }
 
-// TODO(#136): Maestro's sidebar shows each amp as online/offline from a status call it will make
-// every 2 s (IAmpStatusChecker in Maestro.Core, a dummy for now). Add that RPC here.
 #[tonic::async_trait]
 impl AmpService for AmpHandler {
     async fn handshake(
@@ -57,8 +55,6 @@ impl AmpService for AmpHandler {
                     host: req.snapcast_host,
                     port,
                 });
-                // TODO(#119): Maestro has added this amp now, so `state.stream` being Some can be
-                // the panel's "connected to Maestro" status.
                 HandshakeResponse { success: true, error: None }
             }
             Err(e) => {
