@@ -6,9 +6,7 @@ use amp_core::state::SharedState;
 use tonic::transport::Server;
 
 use crate::amp_handler::AmpHandler;
-use crate::handlers::DummyHandler;
 use crate::proto::amp::amp_service_server::AmpServiceServer;
-use crate::proto::dummy::dummy_service_server::DummyServiceServer;
 
 pub async fn serve(
     addr: SocketAddr,
@@ -16,7 +14,6 @@ pub async fn serve(
     slot: PlayerSlot,
 ) -> Result<(), tonic::transport::Error> {
     Server::builder()
-        .add_service(DummyServiceServer::new(DummyHandler))
         .add_service(AmpServiceServer::new(AmpHandler::new(state, slot)))
         .serve(addr)
         .await

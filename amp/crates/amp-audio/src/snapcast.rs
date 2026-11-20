@@ -8,9 +8,7 @@ use snapcast_client::{
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-const BITS_PER_SAMPLE_16: u16 = 16;
-const BYTES_PER_SAMPLE_16: usize = 2;
-const BYTES_PER_SAMPLE_32: usize = 4;
+const PCM16_BITS: u16 = 16;
 
 pub struct SnapcastClientHandle {
     command_tx: mpsc::Sender<ClientCommand>,
@@ -48,10 +46,10 @@ impl SnapcastClientHandle {
     }
 
     pub(crate) fn pull_synced_f32(&self, output: &mut [f32], dac_latency_usec: i64) {
-        let diff_usec = self.time_provider.lock().unwrap().diff_to_server_usec();
+        let diff_usec = self.time_provider.lock().expect("time provider lock poisoned").diff_to_server_usec();
         let server_now_usec = snapcast_proto::time::now_usec() + diff_usec;
 
-        let mut stream = self.stream.lock().unwrap();
+        let mut stream = self.stream.lock().expect("stream lock poisoned");
         let format = stream.format();
         let channels = format.channels().max(1) as usize;
         let frames = (output.len() / channels) as u32;
@@ -72,13 +70,13 @@ impl SnapcastClientHandle {
 
         match (stream.encoding(), format.bits()) {
             (SampleEncoding::Float32, _) => {
-                let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_32>();
+                let (chunks, _) = raw_bytes.as_chunks::<{ size_of::<f32>() }>();
                 for (out_sample, chunk) in output.iter_mut().zip(chunks) {
                     *out_sample = f32::from_le_bytes(*chunk);
                 }
             }
-            (SampleEncoding::PcmInt, BITS_PER_SAMPLE_16) => {
-                let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_16>();
+            (SampleEncoding::PcmInt, PCM16_BITS) => {
+                let (chunks, _) = raw_bytes.as_chunks::<{ size_of::<i16>() }>();
                 for (out_sample, chunk) in output.iter_mut().zip(chunks) {
                     *out_sample = i16::from_le_bytes(*chunk) as f32 / i16::MAX as f32;
                 }

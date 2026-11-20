@@ -8,11 +8,14 @@ use tonic::{Request, Response, Status};
 
 use crate::proto::amp::{amp_service_server::AmpService, HandshakeRequest, HandshakeResponse};
 
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+
 #[derive(Clone)]
 pub struct AmpHandler {
     state: SharedState,
     slot: PlayerSlot,
-    session: Arc<Mutex<Option<StreamSession>>>, // tokio::sync::Mutex
+    // Held for the whole handshake so concurrent handshakes run one at a time.
+    session: Arc<Mutex<Option<StreamSession>>>,
 }
 
 impl AmpHandler {
@@ -46,7 +49,7 @@ impl AmpService for AmpHandler {
         }
         self.state.write().expect("state lock poisoned").stream = None;
 
-        let response = match StreamSession::start(req.snapcast_host.clone(), port, Duration::from_secs(5)).await {
+        let response = match StreamSession::start(req.snapcast_host.clone(), port, CONNECT_TIMEOUT).await {
             Ok(s) => {
                 // Let the audio output start playing this stream.
                 *self.slot.lock().expect("slot lock poisoned") = Some(Arc::clone(&s.handle));
