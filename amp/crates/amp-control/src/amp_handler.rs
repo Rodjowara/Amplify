@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use amp_audio::output::PlayerSlot;
+use amp_audio::output::PlaybackSource;
 use amp_audio::snapcast::SnapcastClientHandle;
-use amp_core::state::{SharedState, StreamConfig};
+use amp_core::state::{SharedState, SnapserverAddress};
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
@@ -13,13 +13,13 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub struct AmpHandler {
     state: SharedState,
-    slot: PlayerSlot,
+    slot: PlaybackSource,
     // Held for the whole handshake so concurrent handshakes run one at a time.
     session: Mutex<Option<Arc<SnapcastClientHandle>>>,
 }
 
 impl AmpHandler {
-    pub fn new(state: SharedState, slot: PlayerSlot) -> Self {
+    pub fn new(state: SharedState, slot: PlaybackSource) -> Self {
         Self { state, slot, session: Mutex::new(None) }
     }
 }
@@ -47,7 +47,7 @@ impl AmpService for AmpHandler {
         if let Some(old) = session.take() {
             old.stop().await;
         }
-        self.state.write().expect("state lock poisoned").stream = None;
+        self.state.write().expect("state lock poisoned").snapserver = None;
 
         let response = match SnapcastClientHandle::connect(req.snapcast_host.clone(), port, CONNECT_TIMEOUT).await {
             Ok(client) => {
@@ -55,7 +55,7 @@ impl AmpService for AmpHandler {
                 // Let the audio output start playing this stream.
                 *self.slot.lock().expect("slot lock poisoned") = Some(Arc::clone(&client));
                 *session = Some(client);
-                self.state.write().expect("state lock poisoned").stream = Some(StreamConfig {
+                self.state.write().expect("state lock poisoned").snapserver = Some(SnapserverAddress {
                     host: req.snapcast_host,
                     port,
                 });

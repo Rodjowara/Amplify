@@ -2,15 +2,15 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use amp_core::state::SharedState;
 use amp_audio::output::start_output;
-use amp_audio::output::PlayerSlot;
+use amp_audio::output::PlaybackSource;
 
 const CONTROL_PORT: u16 = 50051;
 
 fn main() {
     let state = SharedState::default();
-    let slot = PlayerSlot::default();
+    let slot = PlaybackSource::default();
 
-    let _audio = start_output(slot.clone());
+    let _output_stream = start_output(slot.clone());
 
     let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, CONTROL_PORT));
     amp_control::server::spawn(addr, state.clone(), slot);

@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::thread::{self, JoinHandle};
 
-use amp_audio::output::PlayerSlot;
+use amp_audio::output::PlaybackSource;
 use amp_core::state::SharedState;
 use tonic::transport::Server;
 
@@ -11,7 +11,7 @@ use crate::proto::amp::amp_service_server::AmpServiceServer;
 pub async fn serve(
     addr: SocketAddr,
     state: SharedState,
-    slot: PlayerSlot,
+    slot: PlaybackSource,
 ) -> Result<(), tonic::transport::Error> {
     Server::builder()
         .add_service(AmpServiceServer::new(AmpHandler::new(state, slot)))
@@ -20,7 +20,7 @@ pub async fn serve(
 }
 
 /// Runs the gRPC server on its own thread with its own tokio runtime.
-pub fn spawn(addr: SocketAddr, state: SharedState, slot: PlayerSlot) -> JoinHandle<()> {
+pub fn spawn(addr: SocketAddr, state: SharedState, slot: PlaybackSource) -> JoinHandle<()> {
     thread::Builder::new()
         .name("amp-control".into())
         .spawn(move || {

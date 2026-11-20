@@ -73,26 +73,26 @@ impl SnapcastClientHandle {
     }
 
     pub(crate) fn pull_synced_f32(&self, output: &mut [f32], dac_latency_usec: i64) {
-        let diff_usec = self.time_provider.lock().expect("time provider lock poisoned").diff_to_server_usec();
-        let server_now_usec = snapcast_proto::time::now_usec() + diff_usec;
+        let server_offset_usec = self.time_provider.lock().expect("time provider lock poisoned").diff_to_server_usec();
+        let server_now_usec = snapcast_proto::time::now_usec() + server_offset_usec;
 
         let mut stream = self.stream.lock().expect("stream lock poisoned");
         let format = stream.format();
         let channels = format.channels().max(1) as usize;
-        let frames = (output.len() / channels) as u32;
-        let frame_size = format.frame_size() as usize;
+        let frame_count = (output.len() / channels) as u32;
+        let bytes_per_frame = format.frame_size() as usize;
 
-        if frames == 0 || frame_size == 0 {
+        if frame_count == 0 || bytes_per_frame == 0 {
             output.fill(0.0);
             return;
         }
 
-        let mut raw_bytes = vec![0u8; frames as usize * frame_size];
+        let mut raw_bytes = vec![0u8; frame_count as usize * bytes_per_frame];
         stream.get_player_chunk_or_silence(
             server_now_usec,
             dac_latency_usec,
             &mut raw_bytes,
-            frames,
+            frame_count,
         );
 
         match (stream.encoding(), format.bits()) {
