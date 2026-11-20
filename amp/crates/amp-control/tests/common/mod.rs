@@ -34,10 +34,10 @@ pub async fn connect_client(
 ) -> amp_control::proto::amp::amp_service_client::AmpServiceClient<tonic::transport::Channel> {
     let url = format!("http://127.0.0.1:{port}");
     for _ in 0..50 {
-        if let Ok(c) =
+        if let Ok(client) =
             amp_control::proto::amp::amp_service_client::AmpServiceClient::connect(url.clone()).await
         {
-            return c;
+            return client;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }

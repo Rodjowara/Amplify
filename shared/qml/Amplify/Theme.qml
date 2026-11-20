@@ -47,6 +47,7 @@ QtObject {
         readonly property int statusDot: 10
         readonly property int sliderTrack: 4
         readonly property int sliderHandle: 14
+        readonly property int checkIndicator: 20
     }
 
     // How much darker a control gets while pressed.
