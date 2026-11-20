@@ -16,6 +16,8 @@ await using var snapserver = new SnapcastBootstrap(localStream);
 var services = new ServiceCollection();
 services.AddSingleton<ErrorReporter>();
 services.AddSingleton<IAmpManager, AmpManager>();
+// TODO(#136): replace the dummy with the amp's status over gRPC; until then every added amp shows as online.
+services.AddSingleton<IAmpStatusChecker, DummyAmpStatusChecker>();
 services.AddSingleton(localStream);
 services.AddSingleton<LocalFileSource>();
 
@@ -34,6 +36,8 @@ var manager = provider.GetRequiredService<IAmpManager>();
 manager.Add("http://127.0.0.1:50051");
 DummyViewModel.Manager = manager;
 DummyViewModel.Errors = errors;
+
+SidebarViewModel.StatusChecker = provider.GetRequiredService<IAmpStatusChecker>();
 
 PlaybackViewModel.Source = provider.GetRequiredService<LocalFileSource>();
 PlaybackViewModel.Errors = errors;

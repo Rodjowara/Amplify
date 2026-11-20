@@ -1,7 +1,11 @@
 using Maestro.Core.Errors;
+using Maestro.Core.Interfaces;
 using Qt.Quick;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net;
+using System.Net.Sockets;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -17,7 +21,12 @@ public class SidebarViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    [Qt.Ignore]
+    public static IAmpStatusChecker StatusChecker { get; set; } = null!;
+
     public ObservableCollection<AmpItem> Amps { get; } = new();
+
+    private readonly ConcurrentDictionary<string, bool> _onlineByIp = new();
 
     private string _currentPage = "playlist";
     public string CurrentPage
@@ -78,6 +87,7 @@ public class SidebarViewModel : INotifyPropertyChanged
 
             // TODO: connect through IAmpManager and run the handshake; its MaestroExceptions show in the dialog too.
             Amps.Add(new AmpItem { Name = name, Ip = ip });
+            _ = CheckOnlineAsync(ip);
             SetAddAmpError(null);
             return true;
         }
@@ -89,6 +99,22 @@ public class SidebarViewModel : INotifyPropertyChanged
     }
 
     public void ClearAddAmpError() => SetAddAmpError(null);
+
+    // A real status check can finish on a thread pool thread, so results are only stored there
+    // and applied on the next call, which QML makes on the UI thread. Qt Bridge's list model
+    // ignores property changes on items, so a changed amp is replaced to update its row.
+    public void RefreshStatus()
+    {
+        for (var i = 0; i < Amps.Count; i++)
+        {
+            var amp = Amps[i];
+            if (_onlineByIp.TryGetValue(amp.Ip, out var online) && online != amp.Online)
+                Amps[i] = new AmpItem { Name = amp.Name, Ip = amp.Ip, Online = online };
+            _ = CheckOnlineAsync(amp.Ip);
+        }
+    }
+
+    private async Task CheckOnlineAsync(string ip) => _onlineByIp[ip] = await StatusChecker.IsOnlineAsync(ip);
 
     private void SetAddAmpError(MaestroException? error)
     {
