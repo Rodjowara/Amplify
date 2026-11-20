@@ -2,11 +2,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Sockets;
-using Maestro.Application.Interfaces;
-using Maestro.Application.Models;
+using Maestro.Core.Interfaces;
+using Maestro.Core.Models;
 using Maestro.Core.Errors;
 
-namespace Maestro.Infrastructure.Services.Playback;
+namespace Maestro.Core.Services.Playback;
 
 /// <summary>
 /// Plays local audio files: ffmpeg decodes the file to raw PCM, and the PCM is sent over TCP

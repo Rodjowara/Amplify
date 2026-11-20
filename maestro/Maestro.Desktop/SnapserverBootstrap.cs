@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
-using Maestro.Application.Models;
+using Maestro.Core.Models;
 using Maestro.Core.Errors;
 
 namespace Maestro.Desktop;

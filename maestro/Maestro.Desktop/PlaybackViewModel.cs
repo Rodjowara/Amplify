@@ -1,8 +1,8 @@
-using Maestro.Application.Interfaces;
-using Maestro.Application.Models;
+using Maestro.Core.Interfaces;
+using Maestro.Core.Models;
 using Maestro.Core.Errors;
 using Maestro.Desktop.ViewModels;
-using Maestro.Infrastructure.Services.Playback;
+using Maestro.Core.Services.Playback;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;

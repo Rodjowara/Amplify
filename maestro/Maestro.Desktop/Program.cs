@@ -1,10 +1,10 @@
-using Maestro.Application.Models;
+using Maestro.Core.Models;
 using Maestro.Core.Errors;
 using Maestro.Core.Interfaces;
 using Maestro.Core.Services;
 using Maestro.Desktop;
 using Maestro.Desktop.ViewModels;
-using Maestro.Infrastructure.Services.Playback;
+using Maestro.Core.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
 using Qt.Quick;
 

@@ -1,6 +1,6 @@
-using Maestro.Application.Models;
+using Maestro.Core.Models;
 
-namespace Maestro.Application.Interfaces;
+namespace Maestro.Core.Interfaces;
 
 /// <summary>
 /// A source that can bring a track into its own snapserver stream (e.g. local files, Spotify, Apple Music, etc.).
