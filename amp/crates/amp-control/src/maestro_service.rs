@@ -1,28 +1,30 @@
-use std::sync::Arc;
 use std::time::Duration;
 
-use amp_audio::session::{PlayerSlot, StreamSession};
-use amp_core::state::{SharedState, StreamConfig};
+use amp_audio::output::PlaybackSource;
+use amp_audio::snapcast::SnapcastConnection;
+use amp_core::state::{SharedState, SnapserverAddress};
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
 use crate::proto::amp::{amp_service_server::AmpService, HandshakeRequest, HandshakeResponse};
 
-#[derive(Clone)]
-pub struct AmpHandler {
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+
+pub struct MaestroService {
     state: SharedState,
-    slot: PlayerSlot,
-    session: Arc<Mutex<Option<StreamSession>>>, // tokio::sync::Mutex
+    slot: PlaybackSource,
+    // Held for the whole handshake so concurrent handshakes run one at a time.
+    handshake_lock: Mutex<()>,
 }
 
-impl AmpHandler {
-    pub fn new(state: SharedState, slot: PlayerSlot) -> Self {
-        Self { state, slot, session: Arc::new(Mutex::new(None)) }
+impl MaestroService {
+    pub fn new(state: SharedState, slot: PlaybackSource) -> Self {
+        Self { state, slot, handshake_lock: Mutex::new(()) }
     }
 }
 
 #[tonic::async_trait]
-impl AmpService for AmpHandler {
+impl AmpService for MaestroService {
     async fn handshake(
         &self,
         request: Request<HandshakeRequest>,
@@ -37,21 +39,20 @@ impl AmpService for AmpHandler {
             .filter(|p| *p != 0)
             .ok_or_else(|| Status::invalid_argument("snapcast_port must be between 1 and 65535"))?;
 
-        let mut session = self.session.lock().await;
+        let _handshake_guard = self.handshake_lock.lock().await;
 
         // Silence the output first, then stop the old stream and clear the old config.
-        *self.slot.lock().expect("slot lock poisoned") = None;
-        if let Some(old) = session.take() {
+        let old = self.slot.lock().expect("slot lock poisoned").take();
+        if let Some(old) = old {
             old.stop().await;
         }
-        self.state.write().expect("state lock poisoned").stream = None;
+        self.state.write().expect("state lock poisoned").snapserver = None;
 
-        let response = match StreamSession::start(req.snapcast_host.clone(), port, Duration::from_secs(5)).await {
-            Ok(s) => {
+        let response = match SnapcastConnection::connect(req.snapcast_host.clone(), port, CONNECT_TIMEOUT).await {
+            Ok(connection) => {
                 // Let the audio output start playing this stream.
-                *self.slot.lock().expect("slot lock poisoned") = Some(Arc::clone(&s.handle));
-                *session = Some(s);
-                self.state.write().expect("state lock poisoned").stream = Some(StreamConfig {
+                *self.slot.lock().expect("slot lock poisoned") = Some(connection);
+                self.state.write().expect("state lock poisoned").snapserver = Some(SnapserverAddress {
                     host: req.snapcast_host,
                     port,
                 });

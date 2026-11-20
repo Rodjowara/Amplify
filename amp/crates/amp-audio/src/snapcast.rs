@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use snapcast_client::{
     ClientCommand, ClientConfig, ClientEvent, SnapClient,
@@ -8,19 +9,43 @@ use snapcast_client::{
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-const BITS_PER_SAMPLE_16: u16 = 16;
-const BYTES_PER_SAMPLE_16: usize = 2;
-const BYTES_PER_SAMPLE_32: usize = 4;
+const PCM16_BITS: u16 = 16;
 
-pub struct SnapcastClientHandle {
+pub struct SnapcastConnection {
     command_tx: mpsc::Sender<ClientCommand>,
     time_provider: Arc<Mutex<TimeProvider>>,
     stream: Arc<Mutex<Stream>>,
     task: JoinHandle<()>,
 }
 
-impl SnapcastClientHandle {
-    pub(crate) fn spawn(host: String, port: u16) -> (Self, mpsc::Receiver<ClientEvent>) {
+impl SnapcastConnection {
+    pub async fn connect(host: String, port: u16, timeout: Duration) -> Result<Self, String> {
+        let (handle, mut event_rx) = Self::spawn(host, port);
+
+        let wait_for_connect = async {
+            while let Some(event) = event_rx.recv().await {
+                match event {
+                    ClientEvent::Connected { .. } => return Ok(()),
+                    ClientEvent::Disconnected { reason } => {
+                        return Err(format!("disconnected: {reason}"))
+                    }
+                    _ => {}
+                }
+            }
+            Err("client stopped before connecting".to_string())
+        };
+
+        let result = tokio::time::timeout(timeout, wait_for_connect)
+            .await
+            .unwrap_or_else(|_| Err("timed out connecting to the snapserver".into()));
+        if let Err(error) = result {
+            handle.stop().await;
+            return Err(error);
+        }
+        Ok(handle)
+    }
+
+    fn spawn(host: String, port: u16) -> (Self, mpsc::Receiver<ClientEvent>) {
         let client_config = ClientConfig {
             host,
             port,
@@ -48,37 +73,37 @@ impl SnapcastClientHandle {
     }
 
     pub(crate) fn pull_synced_f32(&self, output: &mut [f32], dac_latency_usec: i64) {
-        let diff_usec = self.time_provider.lock().unwrap().diff_to_server_usec();
-        let server_now_usec = snapcast_proto::time::now_usec() + diff_usec;
+        let server_offset_usec = self.time_provider.lock().expect("time provider lock poisoned").diff_to_server_usec();
+        let server_now_usec = snapcast_proto::time::now_usec() + server_offset_usec;
 
-        let mut stream = self.stream.lock().unwrap();
+        let mut stream = self.stream.lock().expect("stream lock poisoned");
         let format = stream.format();
         let channels = format.channels().max(1) as usize;
-        let frames = (output.len() / channels) as u32;
-        let frame_size = format.frame_size() as usize;
+        let frame_count = (output.len() / channels) as u32;
+        let bytes_per_frame = format.frame_size() as usize;
 
-        if frames == 0 || frame_size == 0 {
+        if frame_count == 0 || bytes_per_frame == 0 {
             output.fill(0.0);
             return;
         }
 
-        let mut raw_bytes = vec![0u8; frames as usize * frame_size];
+        let mut raw_bytes = vec![0u8; frame_count as usize * bytes_per_frame];
         stream.get_player_chunk_or_silence(
             server_now_usec,
             dac_latency_usec,
             &mut raw_bytes,
-            frames,
+            frame_count,
         );
 
         match (stream.encoding(), format.bits()) {
             (SampleEncoding::Float32, _) => {
-                let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_32>();
+                let (chunks, _) = raw_bytes.as_chunks::<{ size_of::<f32>() }>();
                 for (out_sample, chunk) in output.iter_mut().zip(chunks) {
                     *out_sample = f32::from_le_bytes(*chunk);
                 }
             }
-            (SampleEncoding::PcmInt, BITS_PER_SAMPLE_16) => {
-                let (chunks, _) = raw_bytes.as_chunks::<BYTES_PER_SAMPLE_16>();
+            (SampleEncoding::PcmInt, PCM16_BITS) => {
+                let (chunks, _) = raw_bytes.as_chunks::<{ size_of::<i16>() }>();
                 for (out_sample, chunk) in output.iter_mut().zip(chunks) {
                     *out_sample = i16::from_le_bytes(*chunk) as f32 / i16::MAX as f32;
                 }
@@ -87,7 +112,7 @@ impl SnapcastClientHandle {
         }
     }
 
-    pub(crate) async fn stop(&self) {
+    pub async fn stop(&self) {
         let _ = self.command_tx.send(ClientCommand::Stop).await;
         self.task.abort();
     }
@@ -97,7 +122,6 @@ impl SnapcastClientHandle {
 mod tests {
     use super::*;
     use snapcast_server::{ServerConfig, SnapServer};
-    use std::time::Duration;
     use tokio::net::TcpListener;
 
     const TEST_CHANNELS: usize = 2;
@@ -118,7 +142,7 @@ mod tests {
             let _ = server.serve(listener).await;
         });
 
-        let (client, _event_rx) = SnapcastClientHandle::spawn("127.0.0.1".into(), port);
+        let (client, _event_rx) = SnapcastConnection::spawn("127.0.0.1".into(), port);
 
         tokio::time::timeout(TEST_TIMEOUT, async {
             let chunk = vec![TEST_SAMPLE_VALUE; TEST_CHUNK_FRAMES * TEST_CHANNELS];
