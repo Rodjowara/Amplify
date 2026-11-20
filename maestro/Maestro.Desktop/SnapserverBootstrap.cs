@@ -9,8 +9,11 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
     private readonly string _name = "maestro-snapserver";
 
     private string Command => string.Join(" && ",
-          // install snapserver
+          // NOTE: snapcast server
           "apk add --no-cache snapcast-server",
+          // NOTE: librespot
+          "apk add --no-cache --repository https://dl-cdn.alpinelinux.org/alpine/edge/testing snapcast-server librespot",
+
           // snapserver config: one stream, built from the shared options
           $"printf '[stream]\\nsource = {stream.ToSourceUri()}\\n' > /etc/snapserver.conf",
           // start service

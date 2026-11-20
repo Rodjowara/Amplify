@@ -11,10 +11,13 @@ public class SpotifyConnectionOptions
 }
 
 // DOCS: https://johnnycrazy.github.io/SpotifyAPI-NET/
+// TOOD: Maestro exception
 public class SpotifyConnection
 {
     private SpotifyConnectionOptions _options = new();
     private SpotifyClient? _client = null;
+
+    public SpotifyClient Client => _client ?? throw new InvalidOperationException();
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
@@ -27,9 +30,13 @@ public class SpotifyConnection
         _client = new SpotifyClient(config);
     }
 
-    public async Task TestAsync()
+    // TODO: dummy test
+    public async Task GetPlaylistTrackListAsync(CancellationToken ct = default)
     {
-        var profile = await _client!.UserProfile.Current();
+        var playlists = await _client!.PaginateAll(await _client.Playlists.CurrentUsers());
+        var playlist = playlists.FirstOrDefault(x => string.Equals(x.Name, "Amplify"));
+        var items = await _client.PaginateAll(await _client!.Playlists.GetPlaylistItems(playlist.Id));
+        var tracks = items.Select(x => x.Item).OfType<FullTrack>().ToList();
     }
 
     private async Task<string> GetSpotifyCodeAsync(string challenge, CancellationToken ct = default)
@@ -46,9 +53,9 @@ public class SpotifyConnection
         await server.Start();
 
         var scopes = new[]
-            {
-                Scopes.UserReadPrivate
-            };
+        {
+            Scopes.PlaylistReadPrivate
+        };
 
         var request = new LoginRequest(_options.RedirectUri, _options.ClientId, LoginRequest.ResponseType.Code)
         {
