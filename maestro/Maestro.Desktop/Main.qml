@@ -55,8 +55,7 @@ ApplicationWindow {
             Sidebar {
                 vm: nav
                 Layout.fillHeight: true
-                // TODO: open the Add amp card once it exists.
-                onAddAmpRequested: console.log("Add amp: not implemented yet")
+                onAddAmpRequested: addAmpDialog.open()
             }
 
             // One page per nav.currentPage
@@ -76,6 +75,7 @@ ApplicationWindow {
 
         // TODO: previous/next, shuffle/repeat, seek and volume need backend support (playlist, master volume).
         PlaybackDock {
+            id: dock
             title: playback.trackTitle
             playing: playback.playing
             Layout.fillWidth: true
@@ -83,8 +83,14 @@ ApplicationWindow {
         }
     }
 
+    AddAmpDialog {
+        id: addAmpDialog
+        vm: nav
+    }
+
     ErrorView {
         errors: errorModel
+        bannerBottomMargin: dock.height
         anchors.fill: parent
     }
 }

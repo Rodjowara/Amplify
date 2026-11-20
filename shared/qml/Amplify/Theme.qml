@@ -18,6 +18,7 @@ QtObject {
         readonly property color disabledText: "#8a8a8a"
         readonly property color online: "#41cd52"
         readonly property color offline: "#5a5a5a"
+        readonly property color error: "#c62828"
     }
 
     readonly property QtObject fontSize: QtObject {

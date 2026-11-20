@@ -5,6 +5,7 @@ public enum ErrorCode
     Unknown,
 
     InvalidAmpAddress,
+    AmpAlreadyAdded,
     AmpUnreachable,
     AmpTimeout,
     AmpRejectedRequest,
