@@ -14,4 +14,10 @@ public interface IPlaybackSource
     /// Calling it again replaces the track that is currently playing.
     /// </summary>
     Task PlayAsync(Track track, CancellationToken ct = default);
+
+    /// <summary>Pauses the current track. Does nothing if nothing is playing.</summary>
+    Task PauseAsync(CancellationToken ct = default);
+
+    /// <summary>Continues a paused track where it was paused. Does nothing if nothing is paused.</summary>
+    Task ResumeAsync(CancellationToken ct = default);
 }
