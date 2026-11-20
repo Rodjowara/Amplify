@@ -13,3 +13,34 @@ alias amp-run='PATH=$QtDir/bin:$PATH LD_LIBRARY_PATH=$QtDir/lib cargo run -p amp
 ```
 
 Then run `amp-run` from `amp/`. Qt Bridge for Rust comes from crates.io, so there's nothing to install for it.
+
+## From handshake to music playing
+
+```mermaid
+sequenceDiagram
+  participant M as Maestro
+  participant Svc as MaestroService
+  participant St as SharedState
+  participant C as SnapcastConnection
+  participant Srv as snapserver
+  participant Spk as sound card (cpal)
+
+  M->>Svc: Handshake(host, port)
+  Svc->>Svc: stop the current stream, speaker goes silent
+  Svc->>C: connect(host, port)
+  C->>Srv: TCP connect
+  Srv-->>C: connected
+  C-->>Svc: Ok
+  Svc->>Svc: make it the current stream
+  Svc->>St: save snapserver address
+  Svc-->>M: success: true
+
+  loop while connected
+    Srv->>C: audio chunks + time sync
+  end
+
+  loop every sound card buffer
+    Spk->>C: audio callback: pull_synced_f32
+    C-->>Spk: chunk for the moment it reaches the speaker, as f32
+  end
+```

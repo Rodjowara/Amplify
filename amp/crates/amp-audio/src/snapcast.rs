@@ -11,14 +11,14 @@ use tokio::task::JoinHandle;
 
 const PCM16_BITS: u16 = 16;
 
-pub struct SnapcastClientHandle {
+pub struct SnapcastConnection {
     command_tx: mpsc::Sender<ClientCommand>,
     time_provider: Arc<Mutex<TimeProvider>>,
     stream: Arc<Mutex<Stream>>,
     task: JoinHandle<()>,
 }
 
-impl SnapcastClientHandle {
+impl SnapcastConnection {
     pub async fn connect(host: String, port: u16, timeout: Duration) -> Result<Self, String> {
         let (handle, mut event_rx) = Self::spawn(host, port);
 
@@ -142,7 +142,7 @@ mod tests {
             let _ = server.serve(listener).await;
         });
 
-        let (client, _event_rx) = SnapcastClientHandle::spawn("127.0.0.1".into(), port);
+        let (client, _event_rx) = SnapcastConnection::spawn("127.0.0.1".into(), port);
 
         tokio::time::timeout(TEST_TIMEOUT, async {
             let chunk = vec![TEST_SAMPLE_VALUE; TEST_CHUNK_FRAMES * TEST_CHANNELS];

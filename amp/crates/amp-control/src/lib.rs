@@ -4,5 +4,5 @@ pub mod proto {
     }
 }
 
-mod amp_handler;
+mod maestro_service;
 pub mod server;

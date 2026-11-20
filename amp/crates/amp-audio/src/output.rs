@@ -2,9 +2,9 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use std::sync::{Arc, Mutex};
 
-use crate::snapcast::SnapcastClientHandle;
+use crate::snapcast::SnapcastConnection;
 
-pub type PlaybackSource = Arc<Mutex<Option<Arc<SnapcastClientHandle>>>>;
+pub type PlaybackSource = Arc<Mutex<Option<SnapcastConnection>>>;
 
 pub fn start_output(slot: PlaybackSource) -> Option<cpal::Stream> {
     let device = cpal::default_host().default_output_device()?;

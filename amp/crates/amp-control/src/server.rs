@@ -5,7 +5,7 @@ use amp_audio::output::PlaybackSource;
 use amp_core::state::SharedState;
 use tonic::transport::Server;
 
-use crate::amp_handler::AmpHandler;
+use crate::maestro_service::MaestroService;
 use crate::proto::amp::amp_service_server::AmpServiceServer;
 
 pub async fn serve(
@@ -14,7 +14,7 @@ pub async fn serve(
     slot: PlaybackSource,
 ) -> Result<(), tonic::transport::Error> {
     Server::builder()
-        .add_service(AmpServiceServer::new(AmpHandler::new(state, slot)))
+        .add_service(AmpServiceServer::new(MaestroService::new(state, slot)))
         .serve(addr)
         .await
 }
