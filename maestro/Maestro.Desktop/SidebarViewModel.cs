@@ -1,11 +1,10 @@
 using Maestro.Core.Errors;
 using Maestro.Core.Interfaces;
+using Maestro.Desktop.ViewModels;
 using Qt.Quick;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Net;
-using System.Net.Sockets;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -17,12 +16,11 @@ namespace Maestro.Desktop;
 /// (the tuning page is for the amp in SelectedAmpIp).
 /// </summary>
 [QmlElement]
-public class SidebarViewModel : INotifyPropertyChanged
+public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    [Qt.Ignore]
-    public static IAmpStatusChecker StatusChecker { get; set; } = null!;
+    private readonly IAmpStatusChecker _statusChecker = GetRequiredService<IAmpStatusChecker>();
 
     public ObservableCollection<AmpItem> Amps { get; } = new();
 
@@ -114,7 +112,7 @@ public class SidebarViewModel : INotifyPropertyChanged
         }
     }
 
-    private async Task CheckOnlineAsync(string ip) => _onlineByIp[ip] = await StatusChecker.IsOnlineAsync(ip);
+    private async Task CheckOnlineAsync(string ip) => _onlineByIp[ip] = await _statusChecker.IsOnlineAsync(ip);
 
     private void SetAddAmpError(MaestroException? error)
     {

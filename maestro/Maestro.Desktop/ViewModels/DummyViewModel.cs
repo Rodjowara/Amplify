@@ -4,20 +4,17 @@ using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Maestro.Desktop;
+namespace Maestro.Desktop.ViewModels;
 // TODO: Rename to match the Amp naming convention.
 //       myb (*Bridge.cs, *Backend.cs).
 
 [QmlElement]
-public class DummyViewModel : INotifyPropertyChanged
+public class DummyViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    [Qt.Ignore]
-    public static IAmpManager Manager { get; set; } = null!;
-
-    [Qt.Ignore]
-    public static ErrorReporter Errors { get; set; } = null!;
+    private readonly IAmpManager _manager = GetRequiredService<IAmpManager>();
+    private readonly ErrorReporter _errors = GetRequiredService<ErrorReporter>();
 
     private int _clicks = 0;
     public int Clicks
@@ -45,10 +42,10 @@ public class DummyViewModel : INotifyPropertyChanged
         }
     }
 
-    public void Ping() => Errors.Run(async () =>
+    public void Ping() => _errors.Run(async () =>
     {
         // TODO: connection should be mapped to UI amp model
-        var amp = Manager.AmpList.First();
+        var amp = _manager.AmpList.First();
         await amp.HandshakeAsync();
         PingResponse = $"Connected to {amp.Host}:{amp.Port}";
     });

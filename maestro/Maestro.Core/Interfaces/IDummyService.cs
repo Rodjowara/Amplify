@@ -1,4 +1,4 @@
-namespace Maestro.Application.Interfaces;
+namespace Maestro.Core.Interfaces;
 
 public interface IDummyService
 {

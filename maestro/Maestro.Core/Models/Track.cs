@@ -1,4 +1,4 @@
-namespace Maestro.Application.Models;
+namespace Maestro.Core.Models;
 
 /// <summary>
 /// A playable track. Location-Uri tells the source where to find it,

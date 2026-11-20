@@ -1,4 +1,4 @@
-namespace Maestro.Application.Models;
+namespace Maestro.Core.Models;
 
 /// <summary>
 /// One snapserver input stream. Used by both the snapserver config and the source that feeds the stream,
