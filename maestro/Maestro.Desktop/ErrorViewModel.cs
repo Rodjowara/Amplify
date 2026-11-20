@@ -11,14 +11,15 @@ public class ErrorViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    private readonly ErrorReporter _reporter = GetRequiredService<ErrorReporter>();
+
     private MaestroException? _bannerError;
     private MaestroException? _pageError;
 
     public ErrorViewModel()
     {
-        var reporter = GetRequiredService<ErrorReporter>();
-        reporter.Reported += error => { _bannerError = error; Refresh(); };
-        reporter.ErrorPageRequested += error => { _pageError = error; Refresh(); };
+        _reporter.Reported += error => { _bannerError = error; Refresh(); };
+        _reporter.ErrorPageRequested += error => { _pageError = error; Refresh(); };
     }
 
     private MaestroException? ShownError => _pageError ?? _bannerError;
