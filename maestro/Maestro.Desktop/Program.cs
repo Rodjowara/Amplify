@@ -8,19 +8,17 @@ using Maestro.Core.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
 using Qt.Quick;
 
-var localStream = new SnapcastStreamOptions();
-
-// SNAPCAST PROCESS
-await using var snapserver = new SnapcastBootstrap(localStream);
-
 // SERVICES
 var services = new ServiceCollection();
 services.AddSingleton<ErrorReporter>();
 services.AddSingleton<IAmpManager, AmpManager>();
 // TODO(#136): replace the dummy with the amp's status over gRPC; until then every added amp shows as online.
 services.AddSingleton<IAmpStatusChecker, DummyAmpStatusChecker>();
-services.AddSingleton(localStream);
+
 services.AddSingleton<LocalFileSource>();
+
+services.AddSingleton<SnapcastStreamOptions>();
+services.AddSingleton<SnapcastBootstrap>();
 
 await using var provider = services.BuildServiceProvider();
 MaestroServices.ServiceProvider = provider;
@@ -44,7 +42,7 @@ async Task StartSnapserverAsync()
 {
     try
     {
-        await snapserver.ExecuteAsync();
+        await provider.GetRequiredService<SnapcastBootstrap>().ExecuteAsync();
     }
     catch (Exception exception)
     {
