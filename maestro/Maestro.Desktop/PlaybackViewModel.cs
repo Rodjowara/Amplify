@@ -20,19 +20,9 @@ public class PlaybackViewModel : INotifyPropertyChanged
     [Qt.Ignore]
     public static ErrorReporter Errors { get; set; } = null!;
 
-    private string _status = "";
-    /// <summary>Last result, shown in the UI.</summary>
-    public string Status
-    {
-        get => _status;
-        private set
-        {
-            if (_status == value)
-                return;
-            _status = value;
-            OnPropertyChanged();
-        }
-    }
+    public string TrackPath { get; set; } = "";
+
+    private string _loadedPath = "";
 
     private string _trackTitle = "";
     /// <summary>Title of the current track, shown in the playback dock.</summary>
@@ -64,18 +54,35 @@ public class PlaybackViewModel : INotifyPropertyChanged
     /// <summary>Called from QML. Starts playback without blocking the UI thread.</summary>
     public void Play(string path) => Errors.Run(async () =>
     {
-        var track = Track.FromFile(path.Trim());
+        var trimmedPath = path.Trim();
+        var track = Track.FromFile(trimmedPath);
         await Source.PlayAsync(track);
-        Status = $"Playing: {track.Title}";
+        _loadedPath = trimmedPath;
         TrackTitle = track.Title;
         Playing = true;
     });
 
-    // TODO: pause/resume the source once IPlaybackSource supports it; for now only the state flips.
     public void TogglePlaying()
     {
-        if (TrackTitle != "")
-            Playing = !Playing;
+        if (Playing)
+        {
+            Errors.Run(async () =>
+            {
+                await Source.PauseAsync();
+                Playing = false;
+            });
+            return;
+        }
+
+        var path = TrackPath.Trim();
+        if (path != "" && path != _loadedPath)
+            Play(path);
+        else if (_loadedPath != "")
+            Errors.Run(async () =>
+            {
+                await Source.ResumeAsync();
+                Playing = true;
+            });
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)

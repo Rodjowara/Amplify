@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.Sockets;
 using Maestro.Application.Interfaces;
 using Maestro.Application.Models;
@@ -20,6 +21,10 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
     private CancellationTokenSource? _playback;
     private Task _pump = Task.CompletedTask;
 
+    private Track? _track;
+    private TimeSpan _startOffset;
+    private readonly Stopwatch _sinceStart = new();
+
     public async Task PlayAsync(Track track, CancellationToken ct = default)
     {
         if (!track.Location.IsFile)
@@ -31,23 +36,40 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
         try
         {
             await StopCoreAsync();
+            _track = track;
+            _startOffset = TimeSpan.Zero;
+            await StartCoreAsync(track, ct);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
 
-            // Connect first: if snapserver isn't reachable, fail before starting ffmpeg.
-            var tcp = new TcpClient();
-            try
-            {
-                await ConnectToSnapserverAsync(tcp, ct);
-                var ffmpeg = StartFfmpeg(track.Location.LocalPath);
+    public async Task PauseAsync(CancellationToken ct = default)
+    {
+        await _lock.WaitAsync(ct);
+        try
+        {
+            if (_playback is null)
+                return;
+            _startOffset += _sinceStart.Elapsed;
+            await StopCoreAsync();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
 
-                _playback = new CancellationTokenSource();
-                // Runs in the background until the track ends or is replaced/stopped.
-                _pump = PumpAsync(ffmpeg, tcp, _playback.Token);
-            }
-            catch
-            {
-                tcp.Dispose();
-                throw;
-            }
+    public async Task ResumeAsync(CancellationToken ct = default)
+    {
+        await _lock.WaitAsync(ct);
+        try
+        {
+            if (_track is null || _playback is not null)
+                return;
+            await StartCoreAsync(_track, ct);
         }
         finally
         {
@@ -59,7 +81,11 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
     public async Task StopAsync()
     {
         await _lock.WaitAsync();
-        try { await StopCoreAsync(); }
+        try
+        {
+            await StopCoreAsync();
+            _track = null;
+        }
         finally { _lock.Release(); }
     }
 
@@ -67,6 +93,28 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
     {
         await StopAsync();
         _lock.Dispose();
+    }
+
+    /// <summary>Plays <paramref name="track"/> from <see cref="_startOffset"/>.</summary>
+    private async Task StartCoreAsync(Track track, CancellationToken ct)
+    {
+        // Connect first: if snapserver isn't reachable, fail before starting ffmpeg.
+        var tcp = new TcpClient();
+        try
+        {
+            await ConnectToSnapserverAsync(tcp, ct);
+            var ffmpeg = StartFfmpeg(track.Location.LocalPath, _startOffset);
+
+            _playback = new CancellationTokenSource();
+            _sinceStart.Restart();
+            // Runs in the background until the track ends or is replaced/stopped.
+            _pump = PumpAsync(ffmpeg, tcp, _playback.Token);
+        }
+        catch
+        {
+            tcp.Dispose();
+            throw;
+        }
     }
 
     private async Task StopCoreAsync()
@@ -89,8 +137,8 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
         }
     }
 
-    /// <summary>Starts ffmpeg so that it writes the decoded file to stdout as raw PCM in the stream's format.</summary>
-    private Process StartFfmpeg(string path)
+    /// <summary>Starts ffmpeg so that it writes the decoded file, from <paramref name="startOffset"/> on, to stdout as raw PCM in the stream's format.</summary>
+    private Process StartFfmpeg(string path, TimeSpan startOffset)
     {
         var info = new ProcessStartInfo("ffmpeg")
         {
@@ -99,12 +147,14 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
         };
 
         // -re: read at real-time speed, so the whole file isn't pushed into the socket at once.
+        // -ss before -i: seek in the input, so resuming doesn't decode everything before the offset.
         // -vn: ignore video streams (e.g. album art embedded in mp3/m4a).
         // s16le: signed 16-bit little-endian PCM, which matches sampleformat ...:16:...
         string[] args =
         [
             "-hide_banner", "-loglevel", "error",
-            "-re", "-i", path, "-vn",
+            "-re", "-ss", startOffset.TotalSeconds.ToString(CultureInfo.InvariantCulture),
+            "-i", path, "-vn",
             "-f", $"s{stream.BitDepth}le",
             "-ar", stream.SampleRate.ToString(),
             "-ac", stream.Channels.ToString(),

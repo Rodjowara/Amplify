@@ -51,22 +51,8 @@ Item {
             placeholderText: qsTr("Path to a local audio file")
             Layout.fillWidth: true
             Layout.topMargin: Theme.spacing.large
+            onTextChanged: root.playback.trackPath = text
             onAccepted: if (text.trim() !== "") root.playback.play(text)
-        }
-
-        AmplifyButton {
-            text: qsTr("Play file")
-            enabled: trackPath.text.trim() !== ""
-            Layout.fillWidth: true
-            onClicked: root.playback.play(trackPath.text)
-        }
-
-        Label {
-            text: root.playback.status
-            color: Theme.colors.textMuted
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            Layout.fillWidth: true
         }
     }
 }
