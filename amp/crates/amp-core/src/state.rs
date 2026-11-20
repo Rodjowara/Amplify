@@ -1,15 +1,14 @@
 use std::sync::{Arc, RwLock};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StreamConfig {
+#[derive(Debug, Clone, PartialEq)]
+pub struct SnapserverAddress {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Default)]
 pub struct AmpState {
-    /// Set after a successful handshake, None before that or after a failed one.
-    pub stream: Option<StreamConfig>,
+    pub snapserver: Option<SnapserverAddress>,
 }
 
 pub type SharedState = Arc<RwLock<AmpState>>;

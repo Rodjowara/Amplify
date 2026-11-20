@@ -1,5 +1,7 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
 using Maestro.Application.Models;
+using Maestro.Core.Errors;
 
 namespace Maestro.Desktop;
 
@@ -39,7 +41,14 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await ExecuteDockerAsync(["rm", "-f", _name], CancellationToken.None);
+        try
+        {
+            await ExecuteDockerAsync(["rm", "-f", _name], CancellationToken.None);
+        }
+        catch (MaestroException exception)
+        {
+            Console.Error.WriteLine(exception);
+        }
     }
 
     private static async Task ExecuteDockerAsync(List<string> arguments, CancellationToken ct)
@@ -53,7 +62,7 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
         arguments.ForEach(info.ArgumentList.Add);
 
-        using var process = Process.Start(info)!;
+        using var process = StartDocker(info);
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
 
@@ -62,7 +71,19 @@ public class SnapcastBootstrap(SnapcastStreamOptions stream) : IAsyncDisposable
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException(await error);
+            throw new MaestroException(ErrorCode.SnapserverStartFailed, new { message = await error });
+        }
+    }
+
+    private static Process StartDocker(ProcessStartInfo info)
+    {
+        try
+        {
+            return Process.Start(info)!;
+        }
+        catch (Win32Exception exception)
+        {
+            throw new MaestroException(ErrorCode.SnapserverStartFailed, new { message = exception.Message }, exception);
         }
     }
 }

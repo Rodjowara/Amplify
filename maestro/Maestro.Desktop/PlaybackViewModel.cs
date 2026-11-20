@@ -1,5 +1,6 @@
 using Maestro.Application.Interfaces;
 using Maestro.Application.Models;
+using Maestro.Core.Errors;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -16,19 +17,12 @@ public class PlaybackViewModel : INotifyPropertyChanged
     [Qt.Ignore]
     public static IPlaybackSource Source { get; set; } = null!;
 
-    private string _status = "";
-    /// <summary>Last result or error, shown in the UI.</summary>
-    public string Status
-    {
-        get => _status;
-        private set
-        {
-            if (_status == value)
-                return;
-            _status = value;
-            OnPropertyChanged();
-        }
-    }
+    [Qt.Ignore]
+    public static ErrorReporter Errors { get; set; } = null!;
+
+    public string TrackPath { get; set; } = "";
+
+    private string _loadedPath = "";
 
     private string _trackTitle = "";
     /// <summary>Title of the current track, shown in the playback dock.</summary>
@@ -58,29 +52,37 @@ public class PlaybackViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Called from QML. Starts playback without blocking the UI thread.</summary>
-    public void Play(string path) => _ = PlayAsync(path);
+    public void Play(string path) => Errors.Run(async () =>
+    {
+        var trimmedPath = path.Trim();
+        var track = Track.FromFile(trimmedPath);
+        await Source.PlayAsync(track);
+        _loadedPath = trimmedPath;
+        TrackTitle = track.Title;
+        Playing = true;
+    });
 
-    // TODO: pause/resume the source once IPlaybackSource supports it; for now only the state flips.
     public void TogglePlaying()
     {
-        if (TrackTitle != "")
-            Playing = !Playing;
-    }
+        if (Playing)
+        {
+            Errors.Run(async () =>
+            {
+                await Source.PauseAsync();
+                Playing = false;
+            });
+            return;
+        }
 
-    private async Task PlayAsync(string path)
-    {
-        try
-        {
-            var track = Track.FromFile(path.Trim());
-            await Source.PlayAsync(track);
-            Status = $"Playing: {track.Title}";
-            TrackTitle = track.Title;
-            Playing = true;
-        }
-        catch (Exception ex)
-        {
-            Status = ex.Message;
-        }
+        var path = TrackPath.Trim();
+        if (path != "" && path != _loadedPath)
+            Play(path);
+        else if (_loadedPath != "")
+            Errors.Run(async () =>
+            {
+                await Source.ResumeAsync();
+                Playing = true;
+            });
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)

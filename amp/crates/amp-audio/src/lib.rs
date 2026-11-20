@@ -1,4 +1,2 @@
-pub mod chain;
-mod snapcast;
-pub mod session;
+pub mod snapcast;
 pub mod output;

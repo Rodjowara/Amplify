@@ -12,8 +12,17 @@ Rectangle {
 
     signal addAmpRequested()
 
+    readonly property int statusRefreshInterval: 2000
+
     implicitWidth: 240
     color: Theme.colors.surface
+
+    Timer {
+        interval: root.statusRefreshInterval
+        running: true
+        repeat: true
+        onTriggered: root.vm.refreshStatus()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -70,7 +79,17 @@ Rectangle {
             }
         }
 
+        Label {
+            visible: ampList.count === 0
+            text: qsTr("No amps yet. Add one with +.")
+            color: Theme.colors.textSubtle
+            font.pixelSize: Theme.fontSize.small
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
         ListView {
+            id: ampList
             clip: true
             spacing: 2
             model: root.vm.amps
