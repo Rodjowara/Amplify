@@ -47,6 +47,8 @@ QtObject {
         readonly property int statusDot: 10
         readonly property int sliderTrack: 4
         readonly property int sliderHandle: 14
+        readonly property int sliderLength: 200
+        readonly property int sliderStepButton: 24
         readonly property int checkIndicator: 20
     }
 
