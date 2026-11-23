@@ -12,14 +12,21 @@ pub fn start_output(slot: PlaybackSource) -> Option<cpal::Stream> {
     println!("[Audio] Output: {:?}", config.config());
 
     let stream_config: cpal::StreamConfig = config.into();
+    let output_sample_rate = stream_config.sample_rate.0;
+    let output_channels = stream_config.channels;
     let stream = device
         .build_output_stream(
             &stream_config,
             move |data: &mut [f32], callback_info: &cpal::OutputCallbackInfo| {
-                if let Ok(guard) = slot.try_lock()
-                    && let Some(client) = guard.as_ref()
+                if let Ok(mut guard) = slot.try_lock()
+                    && let Some(client) = guard.as_mut()
                 {
-                    client.pull_synced_f32(data, dac_latency_usec(callback_info));
+                    client.pull_synced_f32(
+                        data,
+                        dac_latency_usec(callback_info),
+                        output_sample_rate,
+                        output_channels,
+                    );
                     return;
                 }
                 data.fill(0.0);
