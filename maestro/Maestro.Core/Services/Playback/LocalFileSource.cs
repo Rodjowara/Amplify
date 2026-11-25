@@ -15,6 +15,10 @@ namespace Maestro.Core.Services.Playback;
 /// </summary>
 public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter errors) : IPlaybackSource, IAsyncDisposable
 {
+    private const int PumpChunkMs = 20;
+    private const int BitsPerByte = 8;
+    private const int MsPerSecond = 1000;
+
     // Makes sure only one PlayAsync/Stop runs at a time.
     private readonly SemaphoreSlim _lock = new(1, 1);
 
@@ -99,7 +103,7 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
     private async Task StartCoreAsync(Track track, CancellationToken ct)
     {
         // Connect first: if snapserver isn't reachable, fail before starting ffmpeg.
-        var tcp = new TcpClient();
+        var tcp = new TcpClient { NoDelay = true };
         try
         {
             await ConnectToSnapserverAsync(tcp, ct);
@@ -181,7 +185,9 @@ public sealed class LocalFileSource(SnapcastStreamOptions stream, ErrorReporter 
         {
             try
             {
-                await ffmpeg.StandardOutput.BaseStream.CopyToAsync(tcp.GetStream(), ct);
+                var bytesPerSecond = stream.SampleRate * stream.Channels * (stream.BitDepth / BitsPerByte);
+                var bufferSize = Math.Max(1, bytesPerSecond * PumpChunkMs / MsPerSecond);
+                await ffmpeg.StandardOutput.BaseStream.CopyToAsync(tcp.GetStream(), bufferSize, ct);
             }
             catch (OperationCanceledException)
             {
