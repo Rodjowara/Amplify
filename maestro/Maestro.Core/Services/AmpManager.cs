@@ -1,5 +1,6 @@
 ﻿using Maestro.Core.Errors;
 using Maestro.Core.Interfaces;
+using Maestro.Core.Models;
 using System.Net;
 using System.Net.Sockets;
 
@@ -8,8 +9,8 @@ namespace Maestro.Core.Services;
 public class AmpManager : IAmpManager, IDisposable
 {
     private readonly List<AmpConnection> _amps = new();
-    public event Action<AmpConnection>? Added;
-    public event Action<AmpConnection>? Removed;
+    public event Action<Amp>? Added;
+    public event Action<Amp>? Removed;
 
     public Task AddAsync(string name, string ip)
     {
@@ -24,7 +25,7 @@ public class AmpManager : IAmpManager, IDisposable
         });
 
         _amps.Add(amp);
-        Added?.Invoke(amp);
+        Added?.Invoke(amp.Amp);
 
         amp.StartMonitoring();
         return Task.CompletedTask;
@@ -32,13 +33,13 @@ public class AmpManager : IAmpManager, IDisposable
 
     public Task RemoveAsync(Guid id)
     {
-        var amp = _amps.FirstOrDefault(amp => amp.Id == id);
+        var amp = _amps.FirstOrDefault(amp => amp.Amp.Id == id);
         if (amp is null) return Task.CompletedTask;
 
         _amps.Remove(amp);
         amp.Dispose();
 
-        Removed?.Invoke(amp);
+        Removed?.Invoke(amp.Amp);
         return Task.CompletedTask;
     }
 
@@ -58,7 +59,7 @@ public class AmpManager : IAmpManager, IDisposable
             throw new MaestroException(ErrorCode.AMP_InvalidAddress, new { address = ip });
         }
 
-        if (_amps.Any(amp => amp.Host == ip))
+        if (_amps.Any(amp => amp.Amp.Ip == ip))
         {
             throw new MaestroException(ErrorCode.AMP_AlreadyAdded, new { address = ip });
         }

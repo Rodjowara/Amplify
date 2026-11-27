@@ -2,13 +2,14 @@
 using Grpc.Core;
 using Grpc.Net.Client;
 using Maestro.Core.Errors;
+using Maestro.Core.Models;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
 namespace Maestro.Core.Services;
 
-public class AmpConnectionOptions
+internal class AmpConnectionOptions
 {
     public string Name { get; init; } = null!;
 
@@ -19,13 +20,9 @@ public class AmpConnectionOptions
     public uint SnapcastPort { get; set; }
 }
 
-public class AmpConnection : IDisposable
+internal class AmpConnection : IDisposable
 {
-    public Guid Id { get; } = Guid.NewGuid();
-    public string Name => _options.Name;
-    public string Host => _options.Host;
-    public bool IsOnline { get; private set; }
-    public event Action<AmpConnection>? StatusChanged;
+    public Amp Amp { get; }
 
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
@@ -51,10 +48,12 @@ public class AmpConnection : IDisposable
         });
 
         _client = new AmpService.AmpServiceClient(_channel);
+
+        Amp = new Amp(options.Name, options.Host);
     }
 
-    public void Dispose() 
-    { 
+    public void Dispose()
+    {
         _cancellation.Cancel();
         _channel.Dispose();
     }
@@ -95,13 +94,13 @@ public class AmpConnection : IDisposable
                 using var call = _client.Monitor(new MonitorRequest(), cancellationToken: ct);
                 await foreach (var response in call.ResponseStream.ReadAllAsync())
                 {
-                    SetOnline(true);
+                    Amp.SetOnline(true);
                 }
             }
             catch (MaestroException) { }
             catch (RpcException) { }
 
-            SetOnline(false);
+            Amp.SetOnline(false);
 
             try
             {
@@ -109,15 +108,6 @@ public class AmpConnection : IDisposable
             }
             catch (OperationCanceledException) { return; }
         }
-    }
-
-    private void SetOnline(bool online)
-    {
-        if (IsOnline == online)
-            return;
-
-        IsOnline = online;
-        StatusChanged?.Invoke(this);
     }
 
     private string GetLocalIpAddress()

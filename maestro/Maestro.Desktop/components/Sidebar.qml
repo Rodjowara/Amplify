@@ -96,14 +96,14 @@ Rectangle {
             Layout.fillHeight: true
 
             delegate: AmpListItem {
-                required property var modelData
+                required property var item
 
                 width: ListView.view.width
-                name: modelData.name
-                ip: modelData.ip
-                online: modelData.online
-                selected: root.vm.currentPage === "tuning" && root.vm.selectedAmpIp === modelData.ip
-                onClicked: root.vm.selectAmp(modelData.ip)
+                name: item.name
+                ip: item.ip
+                online: item.online
+                selected: root.vm.currentPage === "tuning" && root.vm.selectedAmpIp === item.ip
+                onClicked: root.vm.selectAmp(item.ip)
             }
         }
     }

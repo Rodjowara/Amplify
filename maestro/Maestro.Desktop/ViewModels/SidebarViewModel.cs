@@ -1,7 +1,6 @@
 using Maestro.Core.Errors;
 using Maestro.Core.Interfaces;
-using Maestro.Core.Services;
-using Maestro.Desktop.Models;
+using Maestro.Core.Models;
 using Qt.Quick;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -21,21 +20,26 @@ namespace Maestro.Desktop.ViewModels;
 // TODO: split into AmpViewModel and NavigationViewModel? (could be clenaer later when we add more logic)
 
 [QmlElement]
-public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
+public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged, IDisposable
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private readonly IAmpManager _ampManager;
 
-    public ObservableCollection<AmpItem> Amps { get; } = new();
+    public ObservableCollection<AmpViewModel> Amps { get; } = new();
 
     public SidebarViewModel()
     {
         _ampManager = GetRequiredService<IAmpManager>();
 
-        // TODO: unsubscribe
         _ampManager.Added += OnAmpAdded;
         _ampManager.Removed += OnAmpRemoved;
+    }
+
+    public void Dispose()
+    {
+        _ampManager.Added -= OnAmpAdded;
+        _ampManager.Removed -= OnAmpRemoved;
     }
 
     private string _currentPage = "playlist";
@@ -124,25 +128,15 @@ public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
         OnPropertyChanged(nameof(AddAmpErrorCode));
     }
 
-    private void OnAmpAdded(AmpConnection connection)
-    {
-        Amps.Add(new AmpItem { Name = connection.Name, Ip = connection.Host, Online = connection.IsOnline });
-        connection.StatusChanged += OnAmpStatusChanged;
-    }
+    private void OnAmpAdded(Amp amp) => Amps.Add(new AmpViewModel(amp));
 
-    // Qt Bridge's list model ignores property changes on items, so a changed amp is replaced to update its row.
-    private void OnAmpStatusChanged(AmpConnection connection)
+    private void OnAmpRemoved(Amp amp)
     {
-        var index = Amps.ToList().FindIndex(amp => amp.Ip == connection.Host);
-        if (index < 0)
-            return;
-
-        Amps[index] = new AmpItem { Name = connection.Name, Ip = connection.Host, Online = connection.IsOnline };
-    }
-
-    private void OnAmpRemoved(AmpConnection connection)
-    {
-        // TODO: remove by id (connection.Id), add id to amps
+        foreach (var item in Amps.Where(x => x.Id == amp.Id).ToList())
+        {
+            item.Dispose();
+            Amps.Remove(item);
+        }
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)

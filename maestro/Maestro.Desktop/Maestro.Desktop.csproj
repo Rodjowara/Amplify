@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <None Include="Main.qml" />
-    <Compile Include="Models\AmpItem.cs" />
+    <Compile Include="ViewModels\AmpViewModel.cs" />
     <Compile Include="ViewModels\ErrorViewModel.cs" />
     <Compile Include="ViewModels\PlaybackViewModel.cs" />
     <Compile Include="ViewModels\SidebarViewModel.cs" />
