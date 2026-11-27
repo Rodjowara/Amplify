@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Amplify
+import Amp
 
 Item {
     id: root
@@ -21,7 +22,7 @@ Item {
         Repeater {
             model: root.sliders
 
-            AmplifySlider {
+            AmpLabeledSlider {
                 required property var modelData
 
                 label: modelData.label

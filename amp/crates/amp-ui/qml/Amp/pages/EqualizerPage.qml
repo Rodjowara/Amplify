@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Amplify
+import Amp
 
 Item {
     id: root
@@ -19,7 +20,7 @@ Item {
         Repeater {
             model: root.bands
 
-            AmplifySlider {
+            AmpLabeledSlider {
                 required property string modelData
 
                 orientation: Qt.Vertical
