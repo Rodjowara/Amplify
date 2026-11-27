@@ -18,6 +18,7 @@ QtObject {
         readonly property color disabledText: "#8a8a8a"
         readonly property color online: "#41cd52"
         readonly property color offline: "#5a5a5a"
+        readonly property color error: "#c62828"
     }
 
     readonly property QtObject fontSize: QtObject {
@@ -46,6 +47,7 @@ QtObject {
         readonly property int statusDot: 10
         readonly property int sliderTrack: 4
         readonly property int sliderHandle: 14
+        readonly property int checkIndicator: 20
     }
 
     // How much darker a control gets while pressed.

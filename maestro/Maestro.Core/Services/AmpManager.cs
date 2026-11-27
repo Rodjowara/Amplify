@@ -1,27 +1,74 @@
-﻿using Maestro.Core.Interfaces;
+﻿using Maestro.Core.Errors;
+using Maestro.Core.Interfaces;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Maestro.Core.Services;
 
 public class AmpManager : IAmpManager, IDisposable
 {
     private readonly List<AmpConnection> _amps = new();
+    public event Action<AmpConnection>? Added;
+    public event Action<AmpConnection>? Removed;
 
-    public IReadOnlyList<AmpConnection> AmpList => _amps;
-
-    public void Add(string connectionString)
+    public async Task AddAsync(string name, string ip)
     {
-        // TODO: error handling
-        var amp = new AmpConnection(connectionString);
+        ValidateIpAddress(ip);
+
+        // TODO: read options
+        var amp = new AmpConnection(new AmpConnectionOptions
+        {
+            Name = name,
+            ConnectionString = new Uri($"http://{ip}:50051"),
+            SnapcastPort = 1704
+        });
+
+        try
+        {
+            await amp.HandshakeAsync();
+        }
+        catch
+        {
+            amp.Dispose();
+            throw;
+        }
+
         _amps.Add(amp);
+
+        Added?.Invoke(amp);
+    }
+
+    public Task RemoveAsync(Guid id)
+    {
+        var amp = _amps.FirstOrDefault(amp => amp.Id == id);
+        if (amp is null) return Task.CompletedTask;
+
+        _amps.Remove(amp);
+        amp.Dispose();
+
+        Removed?.Invoke(amp);
+        return Task.CompletedTask;
     }
 
     public void Dispose()
     {
-        foreach (var amp in _amps) 
+        _amps.ForEach(x => x.Dispose());
+        _amps.Clear();
+    }
+
+    // TODO: test
+    private void ValidateIpAddress(string ip)
+    {
+        if (!IPAddress.TryParse(ip, out var address)
+            || address.AddressFamily != AddressFamily.InterNetwork
+            || address.ToString() != ip)
         {
-            amp.Dispose();
+            throw new MaestroException(ErrorCode.AMP_InvalidAddress, new { address = ip });
         }
 
-        _amps.Clear();
+        if (_amps.Any(amp => amp.Host == ip))
+        {
+            throw new MaestroException(ErrorCode.AMP_AlreadyAdded, new { address = ip });
+        }
     }
 }

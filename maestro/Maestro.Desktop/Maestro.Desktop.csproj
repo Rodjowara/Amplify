@@ -31,12 +31,15 @@
 
   <ItemGroup>
     <None Include="Main.qml" />
-    <Compile Include="AmpItem.cs" />
-    <Compile Include="DummyViewModel.cs" />
-    <Compile Include="PlaybackViewModel.cs" />
-    <Compile Include="SidebarViewModel.cs" />
+    <Compile Include="Models\AmpItem.cs" />
+    <Compile Include="ViewModels\ErrorViewModel.cs" />
+    <Compile Include="ViewModels\PlaybackViewModel.cs" />
+    <Compile Include="ViewModels\SidebarViewModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SnapserverBootstrap.cs" />
+    <Compile Include="QtSynchronizationContext.cs" />
+    <Compile Include="ViewModels\BaseViewModel.cs" />
+    <Compile Include="ViewModels\DummyViewModel.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -54,8 +57,7 @@
 
   <ItemGroup>
     <Qml Include="$(AmplifySharedQmlDir)*.qml" IsAmplifyShared="true" />
-    <None Include="$(AmplifySharedQmlDir)icons\*.svg" Link="Amplify\icons\%(Filename)%(Extension)"
-          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(AmplifySharedQmlDir)icons\*.svg" Link="Amplify\icons\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--
@@ -64,7 +66,7 @@
   -->
   <Target Name="UseAmplifyQmlModule" AfterTargets="QtBridgeSetupQml">
     <ItemGroup>
-      <QmlModule Remove="@(Qml->WithMetadataValue('IsAmplifyShared', 'true')->Metadata('Uri'))" />
+      <QmlModule Remove="@(Qml-&gt;WithMetadataValue('IsAmplifyShared', 'true')-&gt;Metadata('Uri'))" />
       <Qml Condition="'%(Qml.IsAmplifyShared)' == 'true'">
         <SourceDir>Amplify/</SourceDir>
         <Uri>Amplify</Uri>
@@ -82,8 +84,7 @@
     Qt Bridge writes qmldir without the "singleton" keyword, so QML files with
     "pragma Singleton" (Theme, Icons) come out undefined. Add the keyword after build.
   -->
-  <UsingTask TaskName="MarkQmlSingletons" TaskFactory="RoslynCodeTaskFactory"
-             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+  <UsingTask TaskName="MarkQmlSingletons" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <OutputDir ParameterType="System.String" Required="true" />
     </ParameterGroup>

@@ -4,7 +4,9 @@ namespace Maestro.Core.Interfaces;
 
 public interface IAmpManager
 {
-    IReadOnlyList<AmpConnection> AmpList { get; }
+    event Action<AmpConnection>? Added;
+    event Action<AmpConnection>? Removed;
 
-    void Add(string connectionString);
+    Task AddAsync(string name, string ip);
+    Task RemoveAsync(Guid id);
 }

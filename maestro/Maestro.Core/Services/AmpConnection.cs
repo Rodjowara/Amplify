@@ -1,25 +1,41 @@
 ﻿using Amplify.Amp;
+using Grpc.Core;
 using Grpc.Net.Client;
+using Maestro.Core.Errors;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
 namespace Maestro.Core.Services;
 
+public class AmpConnectionOptions
+{
+    public string Name { get; init; } = null!;
+
+    public Uri ConnectionString { get; init; } = null!;
+    public string Host => ConnectionString.Host;
+    public int Port => ConnectionString.Port;
+
+    public uint SnapcastPort { get; set; }
+}
+
 public class AmpConnection : IDisposable
 {
-    public string Host { get; }
-    public int Port { get; }
+    private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(3);
+
+    private readonly AmpConnectionOptions _options;
+    public Guid Id { get; } = Guid.NewGuid();
+    public string Name => _options.Name;
+    public string Host => _options.Host;
 
     private readonly GrpcChannel _channel;
     private readonly AmpService.AmpServiceClient _client;
 
-    public AmpConnection(string connectionString)
+    public AmpConnection(AmpConnectionOptions options)
     {
-        var uri = new Uri(connectionString);
-        Host = uri.Host;
-        Port = uri.Port;
+        _options = options;
 
-        _channel = GrpcChannel.ForAddress(connectionString, new GrpcChannelOptions
+        _channel = GrpcChannel.ForAddress(_options.ConnectionString, new GrpcChannelOptions
         {
             // TODO ?
         });
@@ -32,28 +48,44 @@ public class AmpConnection : IDisposable
     public async Task HandshakeAsync()
     {
         // TODO: IOptions?
-        var request = new HandshakeRequest()
+        var request = new HandshakeRequest
         {
             SnapcastHost = GetLocalIpAddress(),
-            SnapcastPort = 1704
+            SnapcastPort = _options.SnapcastPort,
         };
 
-        var response = await _client.HandshakeAsync(request);
-        if (!response.Success)
+        HandshakeResponse response;
+        try
         {
-            throw new InvalidOperationException(response.Error);
+            response = await _client.HandshakeAsync(request, deadline: DateTime.UtcNow + CallTimeout);
         }
+        catch (RpcException exception)
+        {
+            throw new MaestroException(exception, new { amp = _options.Host });
+        }
+
+        if (!response.Success)
+            throw new MaestroException(ErrorCode.AMP_Unexpected, new { amp = _options.Host, message = response.Error });
     }
 
     private string GetLocalIpAddress()
     {
-        using var socket = new Socket(SocketType.Dgram, ProtocolType.Udp);
-        socket.Connect(Host, Port);
+        var address = NetworkInterface.GetAllNetworkInterfaces()
+          .Where(x => x.OperationalStatus == OperationalStatus.Up)
+          .Where(x => x.NetworkInterfaceType is NetworkInterfaceType.Ethernet or NetworkInterfaceType.Wireless80211)
+          .Select(x => x.GetIPProperties())
+          .OrderByDescending(x => x.GatewayAddresses.Any(y => !y.Address.Equals(IPAddress.Any)))
+          .SelectMany(x => x.UnicastAddresses)
+          .Select(x => x.Address)
+          .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+          .Where(x => !IPAddress.IsLoopback(x))
+          .Where(x => !x.ToString().StartsWith("169.254"))
+          .FirstOrDefault();
 
-        var address = ((IPEndPoint)socket.LocalEndPoint!).Address;
+        if (address is null) return "127.0.0.1";
 
         return address.IsIPv4MappedToIPv6
-            ? address.MapToIPv4().ToString()
-            : address.ToString();
+          ? address.MapToIPv4().ToString()
+          : address.ToString();
     }
 }

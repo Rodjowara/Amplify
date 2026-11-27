@@ -11,10 +11,14 @@ Button {
     enum Variant { Primary, Ghost }
     property int variant: AmplifyButton.Variant.Primary
     readonly property bool ghost: variant === AmplifyButton.Variant.Ghost
+    readonly property bool unselected: checkable && !checked
 
-    property color backgroundColor: ghost ? "transparent" : Theme.colors.primary
+    property color backgroundColor: ghost ? "transparent"
+                                  : unselected ? Theme.colors.surface
+                                  : Theme.colors.primary
     property color textColor: ghost ? (checked ? Theme.colors.primary : Theme.colors.text)
-                                    : Theme.colors.primaryText
+                            : unselected ? Theme.colors.textMuted
+                            : Theme.colors.primaryText
     property real radius: Theme.radius.normal
 
     implicitHeight: Theme.size.controlHeight
