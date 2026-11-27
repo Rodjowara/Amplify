@@ -22,6 +22,6 @@ impl Greeter {
     qproperty!("message", Read = message, Constant);
 
     fn message(&self) -> String {
-        ip_address().into()
+        ip_address()
     }
 }
