@@ -39,15 +39,6 @@ public class SpotifyConnection
         }
     }
 
-    // TODO: dummy test
-    public async Task GetPlaylistTrackListAsync(CancellationToken ct = default)
-    {
-        var playlists = await _client!.PaginateAll(await _client.Playlists.CurrentUsers());
-        var playlist = playlists.FirstOrDefault(x => string.Equals(x.Name, "Amplify"));
-        var items = await _client.PaginateAll(await _client!.Playlists.GetPlaylistItems(playlist.Id));
-        var tracks = items.Select(x => x.Item).OfType<FullTrack>().ToList();
-    }
-
     public async Task<List<Track>> SearchTracksAsync(string query, int limit, CancellationToken ct = default)
     {
         try
