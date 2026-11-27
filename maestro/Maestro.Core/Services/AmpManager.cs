@@ -8,7 +8,8 @@ namespace Maestro.Core.Services;
 
 public class AmpManager : IAmpManager, IDisposable
 {
-    private readonly List<AmpConnection> _amps = new();
+    private readonly Dictionary<Guid, Amp> _amps = new();
+    private readonly Dictionary<Guid, AmpConnection> _connections = new();
     public event Action<Amp>? Added;
     public event Action<Amp>? Removed;
 
@@ -16,36 +17,43 @@ public class AmpManager : IAmpManager, IDisposable
     {
         ValidateIpAddress(ip);
 
-        // TODO: read options
-        var amp = new AmpConnection(new AmpConnectionOptions
+        var connection = new AmpConnection(new AmpConnectionOptions
         {
-            Name = name,
             ConnectionString = new Uri($"http://{ip}:50051"),
             SnapcastPort = 1704
         });
 
-        _amps.Add(amp);
-        Added?.Invoke(amp.Amp);
+        var amp = new Amp(name, ip);
 
-        amp.StartMonitoring();
+        _amps.Add(amp.Id, amp);
+        _connections.Add(amp.Id, connection);
+
+        Added?.Invoke(amp);
+
+        _ = connection.MonitorAsync(amp.SetOnline);
+
         return Task.CompletedTask;
     }
 
     public Task RemoveAsync(Guid id)
     {
-        var amp = _amps.FirstOrDefault(amp => amp.Amp.Id == id);
-        if (amp is null) return Task.CompletedTask;
+        if (!_amps.Remove(id, out var amp)) return Task.CompletedTask;
 
-        _amps.Remove(amp);
-        amp.Dispose();
+        _connections.Remove(id, out var connection);
+        connection!.Dispose();
 
-        Removed?.Invoke(amp.Amp);
+        Removed?.Invoke(amp);
         return Task.CompletedTask;
     }
 
     public void Dispose()
     {
-        _amps.ForEach(x => x.Dispose());
+        foreach (var connection in _connections.Values)
+        {
+            connection.Dispose();
+        }
+
+        _connections.Clear();
         _amps.Clear();
     }
 
@@ -59,7 +67,7 @@ public class AmpManager : IAmpManager, IDisposable
             throw new MaestroException(ErrorCode.AMP_InvalidAddress, new { address = ip });
         }
 
-        if (_amps.Any(amp => amp.Amp.Ip == ip))
+        if (_amps.Values.Any(x => x.Ip == ip))
         {
             throw new MaestroException(ErrorCode.AMP_AlreadyAdded, new { address = ip });
         }

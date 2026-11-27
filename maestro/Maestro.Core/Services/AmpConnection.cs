@@ -11,19 +11,13 @@ namespace Maestro.Core.Services;
 
 internal class AmpConnectionOptions
 {
-    public string Name { get; init; } = null!;
-
     public Uri ConnectionString { get; init; } = null!;
     public string Host => ConnectionString.Host;
-    public int Port => ConnectionString.Port;
-
     public uint SnapcastPort { get; set; }
 }
 
 internal class AmpConnection : IDisposable
 {
-    public Amp Amp { get; }
-
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
 
@@ -48,8 +42,6 @@ internal class AmpConnection : IDisposable
         });
 
         _client = new AmpService.AmpServiceClient(_channel);
-
-        Amp = new Amp(options.Name, options.Host);
     }
 
     public void Dispose()
@@ -81,26 +73,27 @@ internal class AmpConnection : IDisposable
             throw new MaestroException(ErrorCode.AMP_Unexpected, new { amp = _options.Host, message = response.Error });
     }
 
-    public void StartMonitoring() => _ = MonitorAsync(_cancellation.Token);
-
-    private async Task MonitorAsync(CancellationToken ct)
+    public async Task MonitorAsync(Action<bool> callback)
     {
+        var ct = _cancellation.Token;
+
         while (!ct.IsCancellationRequested)
         {
             try
             {
                 await HandshakeAsync(ct);
 
-                using var call = _client.Monitor(new MonitorRequest(), cancellationToken: ct);
-                await foreach (var response in call.ResponseStream.ReadAllAsync())
+                var request = new MonitorRequest();
+
+                using var call = _client.Monitor(request, cancellationToken: ct);
+                await foreach (var response in call.ResponseStream.ReadAllAsync(ct))
                 {
-                    Amp.SetOnline(true);
+                    callback(true);
                 }
             }
-            catch (MaestroException) { }
             catch (RpcException) { }
 
-            Amp.SetOnline(false);
+            callback(false);
 
             try
             {
