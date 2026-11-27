@@ -1,4 +1,5 @@
-﻿using Maestro.Core.Models;
+﻿using Maestro.Core.Errors;
+using Maestro.Core.Models;
 using SpotifyAPI.Web;
 using SpotifyAPI.Web.Auth;
 
@@ -18,17 +19,24 @@ public class SpotifyConnection
     private SpotifyConnectionOptions _options = new();
     private SpotifyClient? _client = null;
 
-    public SpotifyClient Client => _client ?? throw new InvalidOperationException();
+    public SpotifyClient Client => _client ?? throw new MaestroException(ErrorCode.SPOTIFY_NotConnected);
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        var (verified, challenge) = PKCEUtil.GenerateCodes();
-        var code = await GetSpotifyCodeAsync(challenge, ct);
-        var request = new PKCETokenRequest(_options.ClientId, code, _options.RedirectUri, verified);
-        var token = await new OAuthClient().RequestToken(request);
-        var config = SpotifyClientConfig.CreateDefault().WithAuthenticator(new PKCEAuthenticator(_options.ClientId, token));
+        try
+        {
+            var (verified, challenge) = PKCEUtil.GenerateCodes();
+            var code = await GetSpotifyCodeAsync(challenge, ct);
+            var request = new PKCETokenRequest(_options.ClientId, code, _options.RedirectUri, verified);
+            var token = await new OAuthClient().RequestToken(request);
+            var config = SpotifyClientConfig.CreateDefault().WithAuthenticator(new PKCEAuthenticator(_options.ClientId, token));
 
-        _client = new SpotifyClient(config);
+            _client = new SpotifyClient(config);
+        }
+        catch (Exception ex)
+        {
+            throw new MaestroException(ErrorCode.SPOTIFY_Unexpected, new { message = ex.Message }, ex);
+        }
     }
 
     // TODO: dummy test
@@ -42,16 +50,23 @@ public class SpotifyConnection
 
     public async Task<List<Track>> SearchTracksAsync(string query, int limit, CancellationToken ct = default)
     {
-        var request = new SearchRequest(SearchRequest.Types.Track, query)
+        try
         {
-            Limit = limit,
-        };
+            var request = new SearchRequest(SearchRequest.Types.Track, query)
+            {
+                Limit = limit,
+            };
 
-        var response = await Client.Search.Item(request, ct);
+            var response = await Client.Search.Item(request, ct);
 
-        return response.Tracks.Items?
-            .Select(x => new Track(x.Id, x.Name, new Uri(x.Uri)))
-            .ToList() ?? [];
+            return response.Tracks.Items?
+                .Select(x => new Track(x.Id, x.Name, new Uri(x.Uri)))
+                .ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            throw new MaestroException(ErrorCode.SPOTIFY_Unexpected, new { message = ex.Message }, ex);
+        }
     }
 
     private async Task<string> GetSpotifyCodeAsync(string challenge, CancellationToken ct = default)

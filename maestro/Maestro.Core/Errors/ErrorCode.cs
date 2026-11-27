@@ -16,4 +16,7 @@ public enum ErrorCode
     StreamInterrupted,
 
     SnapserverStartFailed,
+
+    SPOTIFY_NotConnected,
+    SPOTIFY_Unexpected,
 }
