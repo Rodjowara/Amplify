@@ -28,7 +28,8 @@ ApplicationWindow {
     }
 
     QtSynchronizationContext {
-        onPendingChanged: execute()
+        function executeLate() { execute() }
+        onPendingChanged: Qt.callLater(executeLate)
     }
 
     DummyViewModel {
