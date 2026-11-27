@@ -53,6 +53,14 @@ Rectangle {
             onClicked: root.vm.navigate("settings")
         }
 
+        AmplifyNavButton {
+            text: qsTr("Debug")
+            icon.source: Icons.settings
+            active: root.vm.currentPage === "debug"
+            Layout.fillWidth: true
+            onClicked: root.vm.navigate("debug")
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: Theme.spacing.large

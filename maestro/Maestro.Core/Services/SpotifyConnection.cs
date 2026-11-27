@@ -1,4 +1,5 @@
-﻿using SpotifyAPI.Web;
+﻿using Maestro.Core.Models;
+using SpotifyAPI.Web;
 using SpotifyAPI.Web.Auth;
 
 namespace Maestro.Core.Services;
@@ -37,6 +38,20 @@ public class SpotifyConnection
         var playlist = playlists.FirstOrDefault(x => string.Equals(x.Name, "Amplify"));
         var items = await _client.PaginateAll(await _client!.Playlists.GetPlaylistItems(playlist.Id));
         var tracks = items.Select(x => x.Item).OfType<FullTrack>().ToList();
+    }
+
+    public async Task<List<Track>> SearchTracksAsync(string query, int limit, CancellationToken ct = default)
+    {
+        var request = new SearchRequest(SearchRequest.Types.Track, query)
+        {
+            Limit = limit,
+        };
+
+        var response = await Client.Search.Item(request, ct);
+
+        return response.Tracks.Items?
+            .Select(x => new Track(x.Id, x.Name, new Uri(x.Uri)))
+            .ToList() ?? [];
     }
 
     private async Task<string> GetSpotifyCodeAsync(string challenge, CancellationToken ct = default)

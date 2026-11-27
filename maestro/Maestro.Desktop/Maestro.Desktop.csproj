@@ -40,6 +40,7 @@
     <Compile Include="QtSynchronizationContext.cs" />
     <Compile Include="ViewModels\BaseViewModel.cs" />
     <Compile Include="ViewModels\DummyViewModel.cs" />
+    <Compile Include="ViewModels\SpotifyViewModel.cs" />
   </ItemGroup>
 
   <ItemGroup>
