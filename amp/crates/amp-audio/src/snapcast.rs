@@ -14,8 +14,7 @@ const LOOKAHEAD_FRAMES: usize = 2;
 
 #[derive(Default)]
 struct Resampler {
-    prev_frame: Vec<f32>,
-    curr_frame: Vec<f32>,
+    history: Vec<f32>,
     phase: f64,
 }
 
@@ -27,9 +26,8 @@ impl Resampler {
         output_rate: u32,
         stream_channels: usize,
     ) -> usize {
-        if self.prev_frame.len() != stream_channels {
-            self.prev_frame = vec![0.0; stream_channels];
-            self.curr_frame = vec![0.0; stream_channels];
+        if self.history.len() != LOOKAHEAD_FRAMES * stream_channels {
+            self.history = vec![0.0; LOOKAHEAD_FRAMES * stream_channels];
             self.phase = 0.0;
         }
         let ratio = stream_rate as f64 / output_rate as f64;
@@ -49,14 +47,11 @@ impl Resampler {
         let input_frames = input_samples.len() / stream_channels;
         let ratio = stream_rate as f64 / output_rate as f64;
 
-        let mut source = Vec::with_capacity((input_frames + LOOKAHEAD_FRAMES) * stream_channels);
-        source.extend_from_slice(&self.prev_frame);
-        source.extend_from_slice(&self.curr_frame);
-        source.extend_from_slice(input_samples);
+        let source = [&self.history[..], input_samples].concat();
 
         for (out_idx, out_frame) in output.chunks_exact_mut(output_channels).enumerate() {
             let position = self.phase + out_idx as f64 * ratio;
-            let frame_idx = (position.floor() as usize).min(input_frames);
+            let frame_idx = position.floor() as usize;
             let frac = (position - frame_idx as f64) as f32;
             let first = &source[frame_idx * stream_channels..(frame_idx + 1) * stream_channels];
             let second =
@@ -66,12 +61,8 @@ impl Resampler {
 
         let end_position = self.phase + output_frames as f64 * ratio;
         self.phase = end_position - input_frames as f64;
-        let next_prev_start = input_frames * stream_channels;
-        let next_curr_start = (input_frames + 1) * stream_channels;
-        self.prev_frame
-            .copy_from_slice(&source[next_prev_start..next_curr_start]);
-        self.curr_frame
-            .copy_from_slice(&source[next_curr_start..next_curr_start + stream_channels]);
+        self.history
+            .copy_from_slice(&source[input_frames * stream_channels..]);
     }
 }
 
@@ -92,7 +83,7 @@ impl SnapcastConnection {
                 match event {
                     ClientEvent::Connected { .. } => return Ok(()),
                     ClientEvent::Disconnected { reason } => {
-                        return Err(format!("disconnected: {reason}"));
+                        return Err(format!("disconnected: {reason}"))
                     }
                     _ => {}
                 }
@@ -146,21 +137,9 @@ impl SnapcastConnection {
         output_channels: u16,
     ) {
         let output_channels = output_channels as usize;
-        if output_sample_rate == 0 || output_channels == 0 {
-            output.fill(0.0);
-            return;
-        }
         let output_frames = output.len() / output_channels;
-        if output_frames == 0 {
-            output.fill(0.0);
-            return;
-        }
 
-        let server_offset_usec = self
-            .time_provider
-            .lock()
-            .expect("time provider lock poisoned")
-            .diff_to_server_usec();
+        let server_offset_usec = self.time_provider.lock().expect("time provider lock poisoned").diff_to_server_usec();
         let server_now_usec = snapcast_proto::time::now_usec() + server_offset_usec;
 
         let mut stream = self.stream.lock().expect("stream lock poisoned");
@@ -196,16 +175,14 @@ impl SnapcastConnection {
             stream_channels,
         );
         let mut input_samples = vec![0.0; input_frames * stream_channels];
-        if input_frames > 0 {
-            let mut raw_bytes = vec![0u8; input_frames * bytes_per_frame];
-            stream.get_player_chunk_or_silence(
-                server_now_usec,
-                dac_latency_usec,
-                &mut raw_bytes,
-                input_frames as u32,
-            );
-            decode_pcm_to_f32(&raw_bytes, encoding, bits, &mut input_samples);
-        }
+        let mut raw_bytes = vec![0u8; input_frames * bytes_per_frame];
+        stream.get_player_chunk_or_silence(
+            server_now_usec,
+            dac_latency_usec,
+            &mut raw_bytes,
+            input_frames as u32,
+        );
+        decode_pcm_to_f32(&raw_bytes, encoding, bits, &mut input_samples);
 
         self.resampler.resample_into(
             &input_samples,
@@ -279,7 +256,11 @@ mod tests {
     const RATE_44K1: u32 = 44_100;
     const RATE_96K: u32 = 96_000;
     const CALLBACKS_PER_SECOND: usize = 100;
-    const FRAMES_PER_10MS_AT_44K1: usize = 441;
+    const OUTPUT_FRAMES_PER_CALLBACK: usize = RATE_44K1 as usize / CALLBACKS_PER_SECOND;
+    const TEST_OUTPUT_FRAMES: usize = 200;
+    const UPSAMPLE_FACTOR: usize = (RATE_96K / RATE_48K) as usize;
+    const LEFT_SAMPLE_VALUE: f32 = 0.2;
+    const RIGHT_SAMPLE_VALUE: f32 = 0.6;
     const FLOAT_EPSILON: f32 = 1e-4;
 
     #[tokio::test]
@@ -313,11 +294,11 @@ mod tests {
     fn resampler_downsamples_48khz_to_44100hz_without_drift() {
         let mut resampler = Resampler::default();
         let mut total_input_frames = 0;
-        let mut output = vec![0.0; FRAMES_PER_10MS_AT_44K1 * TEST_CHANNELS];
+        let mut output = vec![0.0; OUTPUT_FRAMES_PER_CALLBACK * TEST_CHANNELS];
 
         for callback_idx in 0..CALLBACKS_PER_SECOND {
             let needed = resampler.input_frames_needed(
-                FRAMES_PER_10MS_AT_44K1,
+                OUTPUT_FRAMES_PER_CALLBACK,
                 RATE_48K,
                 RATE_44K1,
                 TEST_CHANNELS,
@@ -346,10 +327,10 @@ mod tests {
     fn resampler_upsamples_48khz_mono_to_96khz_stereo() {
         let mut resampler = Resampler::default();
         let mono_channels = 1;
-        let output_frames = 200;
+        let output_frames = TEST_OUTPUT_FRAMES;
         let needed =
             resampler.input_frames_needed(output_frames, RATE_48K, RATE_96K, mono_channels);
-        assert_eq!(needed, 100);
+        assert_eq!(needed, output_frames / UPSAMPLE_FACTOR);
 
         let input = vec![TEST_SAMPLE_VALUE; needed * mono_channels];
         let mut output = vec![0.0; output_frames * TEST_CHANNELS];
@@ -362,7 +343,7 @@ mod tests {
             RATE_96K,
         );
 
-        let steady_start = LOOKAHEAD_FRAMES * 2 * TEST_CHANNELS;
+        let steady_start = LOOKAHEAD_FRAMES * UPSAMPLE_FACTOR * TEST_CHANNELS;
         for &sample in &output[steady_start..] {
             assert!((sample - TEST_SAMPLE_VALUE).abs() < FLOAT_EPSILON);
         }
@@ -372,16 +353,12 @@ mod tests {
     fn resampler_downmixes_stereo_to_mono() {
         let mut resampler = Resampler::default();
         let mono_channels = 1;
-        let output_frames = 10;
+        let output_frames = TEST_OUTPUT_FRAMES;
         let needed =
             resampler.input_frames_needed(output_frames, RATE_48K, RATE_48K, TEST_CHANNELS);
         assert_eq!(needed, output_frames);
 
-        let mut input = Vec::with_capacity(needed * TEST_CHANNELS);
-        for _ in 0..needed {
-            input.push(0.2);
-            input.push(0.6);
-        }
+        let input = [LEFT_SAMPLE_VALUE, RIGHT_SAMPLE_VALUE].repeat(needed);
         let mut output = vec![0.0; output_frames * mono_channels];
         resampler.resample_into(
             &input,
@@ -392,8 +369,9 @@ mod tests {
             RATE_48K,
         );
 
+        let expected = (LEFT_SAMPLE_VALUE + RIGHT_SAMPLE_VALUE) / TEST_CHANNELS as f32;
         for &sample in &output[LOOKAHEAD_FRAMES..] {
-            assert!((sample - 0.4).abs() < FLOAT_EPSILON);
+            assert!((sample - expected).abs() < FLOAT_EPSILON);
         }
     }
 }
