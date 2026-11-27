@@ -21,15 +21,19 @@ public class AmpConnectionOptions
 
 public class AmpConnection : IDisposable
 {
-    private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(3);
-
-    private readonly AmpConnectionOptions _options;
     public Guid Id { get; } = Guid.NewGuid();
     public string Name => _options.Name;
     public string Host => _options.Host;
+    public bool IsOnline { get; private set; }
+    public event Action<AmpConnection>? StatusChanged;
 
+    private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(2);
+
+    private readonly AmpConnectionOptions _options;
     private readonly GrpcChannel _channel;
     private readonly AmpService.AmpServiceClient _client;
+    private readonly CancellationTokenSource _cancellation = new();
 
     public AmpConnection(AmpConnectionOptions options)
     {
@@ -37,15 +41,25 @@ public class AmpConnection : IDisposable
 
         _channel = GrpcChannel.ForAddress(_options.ConnectionString, new GrpcChannelOptions
         {
-            // TODO ?
+            HttpHandler = new SocketsHttpHandler
+            {
+                // TODO: move to settings
+                KeepAlivePingDelay = TimeSpan.FromSeconds(5),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(3),
+                EnableMultipleHttp2Connections = true
+            }
         });
 
         _client = new AmpService.AmpServiceClient(_channel);
     }
 
-    public void Dispose() => _channel.Dispose();
+    public void Dispose() 
+    { 
+        _cancellation.Cancel();
+        _channel.Dispose();
+    }
 
-    public async Task HandshakeAsync()
+    private async Task HandshakeAsync(CancellationToken ct)
     {
         // TODO: IOptions?
         var request = new HandshakeRequest
@@ -57,7 +71,7 @@ public class AmpConnection : IDisposable
         HandshakeResponse response;
         try
         {
-            response = await _client.HandshakeAsync(request, deadline: DateTime.UtcNow + CallTimeout);
+            response = await _client.HandshakeAsync(request, deadline: DateTime.UtcNow + CallTimeout, cancellationToken: ct);
         }
         catch (RpcException exception)
         {
@@ -66,6 +80,44 @@ public class AmpConnection : IDisposable
 
         if (!response.Success)
             throw new MaestroException(ErrorCode.AMP_Unexpected, new { amp = _options.Host, message = response.Error });
+    }
+
+    public void StartMonitoring() => _ = MonitorAsync(_cancellation.Token);
+
+    private async Task MonitorAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await HandshakeAsync(ct);
+
+                using var call = _client.Monitor(new MonitorRequest(), cancellationToken: ct);
+                await foreach (var response in call.ResponseStream.ReadAllAsync())
+                {
+                    SetOnline(true);
+                }
+            }
+            catch (MaestroException) { }
+            catch (RpcException) { }
+
+            SetOnline(false);
+
+            try
+            {
+                await Task.Delay(ReconnectDelay, ct);
+            }
+            catch (OperationCanceledException) { return; }
+        }
+    }
+
+    private void SetOnline(bool online)
+    {
+        if (IsOnline == online)
+            return;
+
+        IsOnline = online;
+        StatusChanged?.Invoke(this);
     }
 
     private string GetLocalIpAddress()

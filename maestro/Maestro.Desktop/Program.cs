@@ -12,8 +12,6 @@ using Qt.Quick;
 var services = new ServiceCollection();
 services.AddSingleton<ErrorReporter>();
 services.AddSingleton<IAmpManager, AmpManager>();
-// TODO(#136): replace the dummy with the amp's status over gRPC; until then every added amp shows as online.
-services.AddSingleton<IAmpStatusChecker, DummyAmpStatusChecker>();
 
 services.AddSingleton<LocalFileSource>();
 

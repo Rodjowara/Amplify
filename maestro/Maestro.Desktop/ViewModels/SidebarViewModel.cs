@@ -3,7 +3,6 @@ using Maestro.Core.Interfaces;
 using Maestro.Core.Services;
 using Maestro.Desktop.Models;
 using Qt.Quick;
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Net;
@@ -26,16 +25,12 @@ public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private readonly IAmpStatusChecker _statusChecker;
     private readonly IAmpManager _ampManager;
 
     public ObservableCollection<AmpItem> Amps { get; } = new();
 
-    private readonly ConcurrentDictionary<string, bool> _onlineByIp = new();
-
     public SidebarViewModel()
     {
-        _statusChecker = GetRequiredService<IAmpStatusChecker>();
         _ampManager = GetRequiredService<IAmpManager>();
 
         // TODO: unsubscribe
@@ -123,22 +118,6 @@ public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
 
     public void ClearAddAmpError() => SetAddAmpError(null);
 
-    // A real status check can finish on a thread pool thread, so results are only stored there
-    // and applied on the next call, which QML makes on the UI thread. Qt Bridge's list model
-    // ignores property changes on items, so a changed amp is replaced to update its row.
-    public void RefreshStatus()
-    {
-        for (var i = 0; i < Amps.Count; i++)
-        {
-            var amp = Amps[i];
-            if (_onlineByIp.TryGetValue(amp.Ip, out var online) && online != amp.Online)
-                Amps[i] = new AmpItem { Name = amp.Name, Ip = amp.Ip, Online = online };
-            _ = CheckOnlineAsync(amp.Ip);
-        }
-    }
-
-    private async Task CheckOnlineAsync(string ip) => _onlineByIp[ip] = await _statusChecker.IsOnlineAsync(ip);
-
     private void SetAddAmpError(MaestroException? error)
     {
         _addAmpError = error;
@@ -147,7 +126,18 @@ public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
 
     private void OnAmpAdded(AmpConnection connection)
     {
-        Amps.Add(new AmpItem { Name = connection.Name, Ip = connection.Host });
+        Amps.Add(new AmpItem { Name = connection.Name, Ip = connection.Host, Online = connection.IsOnline });
+        connection.StatusChanged += OnAmpStatusChanged;
+    }
+
+    // Qt Bridge's list model ignores property changes on items, so a changed amp is replaced to update its row.
+    private void OnAmpStatusChanged(AmpConnection connection)
+    {
+        var index = Amps.ToList().FindIndex(amp => amp.Ip == connection.Host);
+        if (index < 0)
+            return;
+
+        Amps[index] = new AmpItem { Name = connection.Name, Ip = connection.Host, Online = connection.IsOnline };
     }
 
     private void OnAmpRemoved(AmpConnection connection)

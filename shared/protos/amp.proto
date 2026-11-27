@@ -6,6 +6,7 @@ option csharp_namespace = "Amplify.Amp";
 
 service AmpService {
 	rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
+	rpc Monitor(MonitorRequest) returns (stream MonitorResponse);
 }
 
 message HandshakeRequest
@@ -18,4 +19,14 @@ message HandshakeResponse
 {
 	bool success = 1;
 	optional string error = 2;
+}
+
+message MonitorRequest
+{
+
+}
+
+message MonitorResponse
+{
+	
 }

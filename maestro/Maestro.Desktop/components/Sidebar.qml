@@ -12,17 +12,8 @@ Rectangle {
 
     signal addAmpRequested()
 
-    readonly property int statusRefreshInterval: 2000
-
     implicitWidth: 240
     color: Theme.colors.surface
-
-    Timer {
-        interval: root.statusRefreshInterval
-        running: true
-        repeat: true
-        onTriggered: root.vm.refreshStatus()
-    }
 
     ColumnLayout {
         anchors.fill: parent

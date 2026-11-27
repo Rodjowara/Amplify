@@ -11,7 +11,7 @@ public class AmpManager : IAmpManager, IDisposable
     public event Action<AmpConnection>? Added;
     public event Action<AmpConnection>? Removed;
 
-    public async Task AddAsync(string name, string ip)
+    public Task AddAsync(string name, string ip)
     {
         ValidateIpAddress(ip);
 
@@ -23,19 +23,11 @@ public class AmpManager : IAmpManager, IDisposable
             SnapcastPort = 1704
         });
 
-        try
-        {
-            await amp.HandshakeAsync();
-        }
-        catch
-        {
-            amp.Dispose();
-            throw;
-        }
-
         _amps.Add(amp);
-
         Added?.Invoke(amp);
+
+        amp.StartMonitoring();
+        return Task.CompletedTask;
     }
 
     public Task RemoveAsync(Guid id)
