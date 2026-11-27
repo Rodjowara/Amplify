@@ -1,10 +1,9 @@
 using Maestro.Core.Errors;
-using Maestro.Desktop.ViewModels;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Maestro.Desktop;
+namespace Maestro.Desktop.ViewModels;
 
 [QmlElement]
 public class ErrorViewModel : BaseViewModel, INotifyPropertyChanged

@@ -25,9 +25,8 @@ public class MaestroException : Exception
     #region Utils
     private static ErrorCode ToErrorCode(StatusCode status) => status switch
     {
-        StatusCode.Unavailable => ErrorCode.AmpUnreachable,
-        StatusCode.DeadlineExceeded => ErrorCode.AmpTimeout,
-        StatusCode.InvalidArgument or StatusCode.FailedPrecondition => ErrorCode.AmpRejectedRequest,
+        StatusCode.Unavailable => ErrorCode.AMP_Unreachable,
+        StatusCode.DeadlineExceeded => ErrorCode.AMP_Timeout,
         _ => ErrorCode.Unknown,
     };
 

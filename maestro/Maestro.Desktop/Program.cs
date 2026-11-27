@@ -30,9 +30,6 @@ TaskScheduler.UnobservedTaskException += (_, args) =>
     args.SetObserved();
 };
 
-// TEST
-provider.GetRequiredService<IAmpManager>().Add("http://127.0.0.1:50051");
-
 // QML
 Qml.LoadFromRootModule("Main");
 _ = StartSnapserverAsync();

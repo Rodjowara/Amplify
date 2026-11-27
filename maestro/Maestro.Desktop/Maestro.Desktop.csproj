@@ -31,12 +31,13 @@
 
   <ItemGroup>
     <None Include="Main.qml" />
-    <Compile Include="AmpItem.cs" />
-    <Compile Include="ErrorViewModel.cs" />
-    <Compile Include="PlaybackViewModel.cs" />
-    <Compile Include="SidebarViewModel.cs" />
+    <Compile Include="Models\AmpItem.cs" />
+    <Compile Include="ViewModels\ErrorViewModel.cs" />
+    <Compile Include="ViewModels\PlaybackViewModel.cs" />
+    <Compile Include="ViewModels\SidebarViewModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SnapserverBootstrap.cs" />
+    <Compile Include="QtSynchronizationContext.cs" />
     <Compile Include="ViewModels\BaseViewModel.cs" />
     <Compile Include="ViewModels\DummyViewModel.cs" />
   </ItemGroup>

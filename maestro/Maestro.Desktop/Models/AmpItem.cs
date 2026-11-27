@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Maestro.Desktop;
+namespace Maestro.Desktop.Models;
 
 /// <summary>One amp as shown in the sidebar.</summary>
 public class AmpItem : INotifyPropertyChanged

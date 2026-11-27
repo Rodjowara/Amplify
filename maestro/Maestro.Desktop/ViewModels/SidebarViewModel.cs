@@ -1,6 +1,7 @@
 using Maestro.Core.Errors;
 using Maestro.Core.Interfaces;
-using Maestro.Desktop.ViewModels;
+using Maestro.Core.Services;
+using Maestro.Desktop.Models;
 using Qt.Quick;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -8,23 +9,39 @@ using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 
-namespace Maestro.Desktop;
+namespace Maestro.Desktop.ViewModels;
 
 /// <summary>
 /// Sidebar state and a simple router: CurrentPage is "playlist", "settings" or "tuning"
 /// (the tuning page is for the amp in SelectedAmpIp).
 /// </summary>
+/// 
+
+// TODO: split into AmpViewModel and NavigationViewModel? (could be clenaer later when we add more logic)
+
 [QmlElement]
 public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private readonly IAmpStatusChecker _statusChecker = GetRequiredService<IAmpStatusChecker>();
+    private readonly IAmpStatusChecker _statusChecker;
+    private readonly IAmpManager _ampManager;
 
     public ObservableCollection<AmpItem> Amps { get; } = new();
 
     private readonly ConcurrentDictionary<string, bool> _onlineByIp = new();
+
+    public SidebarViewModel()
+    {
+        _statusChecker = GetRequiredService<IAmpStatusChecker>();
+        _ampManager = GetRequiredService<IAmpManager>();
+
+        // TODO: unsubscribe
+        _ampManager.Added += OnAmpAdded;
+        _ampManager.Removed += OnAmpRemoved;
+    }
 
     private string _currentPage = "playlist";
     public string CurrentPage
@@ -69,30 +86,38 @@ public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
 
     public string AddAmpErrorArgument(string name) => _addAmpError?.Arguments.GetValueOrDefault(name) ?? "";
 
-    public bool AddAmp(string name, string ip)
+    // TODO: better way?
+    private bool _isAddingAmp;
+    public bool IsAddingAmp
     {
-        name = name.Trim();
-        ip = ip.Trim();
+        get => _isAddingAmp;
+        private set
+        {
+            if (_isAddingAmp == value)
+                return;
+            _isAddingAmp = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public void AddAmp(string name, string ip) => _ = AddAmpAsync(name, ip);
+
+    private async Task AddAmpAsync(string name, string ip)
+    {
+        SetAddAmpError(null);
+        IsAddingAmp = true;
+
         try
         {
-            if (!IPAddress.TryParse(ip, out var address)
-                || address.AddressFamily != AddressFamily.InterNetwork
-                || address.ToString() != ip)
-                throw new MaestroException(ErrorCode.InvalidAmpAddress, new { address = ip });
-
-            if (Amps.Any(amp => amp.Ip == ip))
-                throw new MaestroException(ErrorCode.AmpAlreadyAdded, new { address = ip });
-
-            // TODO: connect through IAmpManager and run the handshake; its MaestroExceptions show in the dialog too.
-            Amps.Add(new AmpItem { Name = name, Ip = ip });
-            _ = CheckOnlineAsync(ip);
-            SetAddAmpError(null);
-            return true;
+            await _ampManager.AddAsync(name.Trim(), ip.Trim());
         }
         catch (MaestroException exception)
         {
             SetAddAmpError(exception);
-            return false;
+        }
+        finally
+        {
+            IsAddingAmp = false;
         }
     }
 
@@ -118,6 +143,16 @@ public class SidebarViewModel : BaseViewModel, INotifyPropertyChanged
     {
         _addAmpError = error;
         OnPropertyChanged(nameof(AddAmpErrorCode));
+    }
+
+    private void OnAmpAdded(AmpConnection connection)
+    {
+        Amps.Add(new AmpItem { Name = connection.Name, Ip = connection.Host });
+    }
+
+    private void OnAmpRemoved(AmpConnection connection)
+    {
+        // TODO: remove by id (connection.Id), add id to amps
     }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? name = null)

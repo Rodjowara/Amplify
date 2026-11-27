@@ -1,13 +1,12 @@
 using Maestro.Core.Interfaces;
 using Maestro.Core.Models;
 using Maestro.Core.Errors;
-using Maestro.Desktop.ViewModels;
 using Maestro.Core.Services.Playback;
 using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Maestro.Desktop;
+namespace Maestro.Desktop.ViewModels;
 
 /// <summary>Debug UI for testing playback: play a local file path through the injected source.</summary>
 [QmlElement]
