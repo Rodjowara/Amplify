@@ -48,6 +48,10 @@ ApplicationWindow {
         id: errorModel
     }
 
+    SpotifyViewModel {
+        id: spotify
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -65,7 +69,7 @@ ApplicationWindow {
 
             // One page per nav.currentPage
             StackLayout {
-                currentIndex: ["playlist", "settings", "tuning"].indexOf(nav.currentPage)
+                currentIndex: ["playlist", "settings", "tuning", "debug"].indexOf(nav.currentPage)
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -75,6 +79,7 @@ ApplicationWindow {
                 }
                 PlaceholderPage { title: qsTr("Settings") }
                 PlaceholderPage { title: qsTr("Tuning") + ": " + nav.selectedAmpIp }
+                DebugPage { spotify: spotify }
             }
         }
 

@@ -20,6 +20,8 @@ services.AddSingleton<LocalFileSource>();
 services.AddSingleton<SnapcastStreamOptions>();
 services.AddSingleton<SnapcastBootstrap>();
 
+services.AddSingleton<SpotifyConnection>();
+
 await using var provider = services.BuildServiceProvider();
 MaestroServices.ServiceProvider = provider;
 
