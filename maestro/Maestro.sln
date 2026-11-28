@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dummy.Server", "Dummy.Serve
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maestro.Core", "Maestro.Core\Maestro.Core.csproj", "{15714564-F0BB-4CF0-BC0C-27976E442882}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maestro.Core.Tests", "Maestro.Core.Tests\Maestro.Core.Tests.csproj", "{5D20EF28-3829-4661-96C0-30DACF90A09C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{15714564-F0BB-4CF0-BC0C-27976E442882}.Release|x64.Build.0 = Release|Any CPU
 		{15714564-F0BB-4CF0-BC0C-27976E442882}.Release|x86.ActiveCfg = Release|Any CPU
 		{15714564-F0BB-4CF0-BC0C-27976E442882}.Release|x86.Build.0 = Release|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Debug|x64.Build.0 = Debug|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Debug|x86.Build.0 = Debug|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Release|x64.ActiveCfg = Release|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Release|x64.Build.0 = Release|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Release|x86.ActiveCfg = Release|Any CPU
+		{5D20EF28-3829-4661-96C0-30DACF90A09C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
