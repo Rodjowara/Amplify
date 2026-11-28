@@ -73,7 +73,7 @@ internal class AmpConnection : IDisposable
             throw new MaestroException(ErrorCode.AMP_Unexpected, new { amp = _options.Host, message = response.Error });
     }
 
-    public async Task MonitorAsync(Action<bool> callback)
+    public async Task MonitorStateAsync(Action<bool> callback)
     {
         var ct = _cancellation.Token;
 
@@ -83,9 +83,9 @@ internal class AmpConnection : IDisposable
             {
                 await HandshakeAsync(ct);
 
-                var request = new MonitorRequest();
+                var request = new MonitorStateRequest();
 
-                using var call = _client.Monitor(request, cancellationToken: ct);
+                using var call = _client.MonitorState(request, cancellationToken: ct);
                 await foreach (var response in call.ResponseStream.ReadAllAsync(ct))
                 {
                     callback(true);

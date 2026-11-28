@@ -30,7 +30,7 @@ public class AmpManager : IAmpManager, IDisposable
 
         Added?.Invoke(amp);
 
-        _ = connection.MonitorAsync(amp.SetOnline);
+        _ = connection.MonitorStateAsync(amp.SetOnline);
 
         return Task.CompletedTask;
     }

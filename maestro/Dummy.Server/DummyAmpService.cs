@@ -10,9 +10,9 @@ public class DummyAmpService(IHostApplicationLifetime lifetime) : AmpService.Amp
         return Task.FromResult(new HandshakeResponse { Success = true });
     }
 
-    public override async Task Monitor(MonitorRequest request, IServerStreamWriter<MonitorResponse> responseStream, ServerCallContext context)
+    public override async Task MonitorState(MonitorStateRequest request, IServerStreamWriter<MonitorStateResponse> responseStream, ServerCallContext context)
     {
-        await responseStream.WriteAsync(new MonitorResponse());
+        await responseStream.WriteAsync(new MonitorStateResponse());
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken, lifetime.ApplicationStopping);
         await Task.Delay(Timeout.Infinite, stop.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
     }

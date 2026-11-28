@@ -21,12 +21,12 @@ message HandshakeResponse
 	optional string error = 2;
 }
 
-message MonitorRequest
+message MonitorStateRequest
 {
 
 }
 
-message MonitorResponse
+message MonitorStateResponse
 {
 	
 }
