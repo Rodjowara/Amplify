@@ -95,7 +95,23 @@ sudo nmtui
 ##Step 4
 
 Your PC and Raspberry Pi work on different architectures. Because of this, the project will have to be built inside a Docker for Raspberry Pi's architecture (ARM64). This step describes how to get the Docker images up and running.
-TODO: Docker setup
+
+Installation of an arm64 emulator is required, so download it using the following command:
+```bash
+sudo apt install -y docker.io qemu-user-static binfmt-support
+```
+
+Check the installation:
+```bash
+docker run --rm --platform linux/arm64 debian:trixie uname -m    # should print aarch64
+```
+
+Finally, load the images:
+```bash
+docker load < amp-build-images.tar.gz
+docker images --filter "reference=qt-*"
+docker run --rm --platform linux/arm64 qt-rust-arm64 sh -c 'rustc --version && qmake --version && protoc --version'
+```
 
 ##Step 5
 
