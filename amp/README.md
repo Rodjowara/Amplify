@@ -1,9 +1,11 @@
 # Amp
 
 ##Raspberry Pi setup
+
 Your Pi should've come with an SD card. If it didn't, find the nearest one and make sure it has enough memory (16GB should be fine).
 
 ## Requirements
+
 - Raspberry Pi 3, microSD card, 5V 2.5A power supply (you should get all of these from FER)
 - PC on the same network
 - Ethernet cable (recommended for the first boot; Wi-Fi can be fixed later)
@@ -14,6 +16,7 @@ Your Pi should've come with an SD card. If it didn't, find the nearest one and m
 - screen/speaker setup
 
 ##Step 1
+
 On your PC, install the Raspberry Pi imager. On Linux, it can be done with:
 ```bash
 sudo apt install rpi-imager
@@ -33,6 +36,7 @@ In Raspberry Pi Imager:
 3. Write the card. Writing overwrites the whole card, so formatting it first is unnecessary.
 
 ##Step 2
+
 Before you boot the Pi for the first time, there are some additional precautionary steps. 
 SSH and user sometimes might not be configured automatically, so you'll have to run these commands first.
 With the SD card inserted into the laptop, run these commands:
@@ -60,6 +64,7 @@ New-Item D:\ssh -ItemType File
 Replace the "D:" with the drive name Windows shows for it. Alternatively, you can run the Linux commands through WSL.
 
 ##Step 3
+
 Your SD card is set up now. For the first boot, connect the Pi to the internet with an Ethernet cable.
 Insert the SD card into the slot on the Pi and connect the power supply. Red LED will turn on, and the green LED will begin flashing. Wait until the green LED calms down.
 
@@ -69,33 +74,63 @@ ssh [username]@raspberrypi.local
 ```
 "Username" is the one you set in the imager. Now you're controlling the Pi over your PC.
 
+You can connect the Pi to Wifi now using the following commands:
+```bash
+sudo raspi-config nonint do_wifi_country XX
+sudo rfkill unblock wifi
+```
+
+Replace "XX" with your country's two-letter code (e.g. HR for Croatia). Now you can run:
+```bash
+sudo raspi-config nonint do_wifi_country XX
+sudo rfkill unblock wifi
+```
+
+Alternatively, you can do it via a menu:
+```bash
+sudo nmtui
+```
+
+
 ##Step 4
-Now we're ready to install Rust, QT and ALSA headers (needed for cpal). Raspberry Pi OS is a Linux OS, so the commands will look familiar to Linux users.
-To install required headers, run:
+
+Your PC and Raspberry Pi work on different architectures. Because of this, the project will have to be built inside a Docker for Raspberry Pi's architecture (ARM64). This step describes how to get the Docker images up and running.
+TODO: Docker setup
+
+##Step 5
+
+NOTE: these are the steps for the Linux PC. For Windows and Mac, either wait until I write those, or use Claude to translate them.
+
+To build the Amp project, use these commands:
 ```bash
-sudo apt install -y build-essential pkg-config cmake ninja-build clang libasound2-dev
+cd <repo-root>
+grep -n -A15 "members" Cargo.toml
 ```
 
-To install Rust, run:
+The build commands:
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
-rustc --version
-cargo --version
+mkdir -p ~/qt-pi/target-amp
+cd ~/path/to/Amplify
+docker run --rm --platform linux/arm64 \
+  -v "$PWD":/work \
+  -v ~/qt-pi/target-amp:/target \
+  -v qt-cargo-registry:/root/.cargo/registry \
+  -v qt-cargo-git:/root/.cargo/git \
+  -w /work/amp \
+  qt-rust-arm64 cargo build --release -p amp-app --target-dir /target
 ```
 
-To install QT, run:
+Now you can copy the build to your Raspberry Pi:
 ```bash
-sudo apt install -y \
-  qt6-base-dev \
-  qt6-declarative-dev \
-  qml6-module-qtquick \
-  qml6-module-qtquick-controls \
-  qml6-module-qtquick-layouts \
-  qml6-module-qtquick-window
+scp ~/qt-pi/target-amp/release/amp-app [your username]@raspberrypi.local:~/
 ```
 
-Now you're all set to test and develop Amp.
+And run it:
+```bash
+ssh ivan@raspberrypi.local
+chmod +x ~/amp-app
+LD_LIBRARY_PATH=/opt/qt6/lib QT_QPA_PLATFORM=offscreen ~/amp-app 2>&1 | tee ~/amp.log
+```
 
 ## Linux setup
 

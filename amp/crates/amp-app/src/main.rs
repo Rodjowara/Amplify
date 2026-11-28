@@ -15,6 +15,11 @@ fn main() {
     let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, CONTROL_PORT));
     amp_control::server::spawn(addr, state.clone(), slot);
 
+    match local_ip_address::local_ip() {
+        Ok(ip) => println!("Control server listening on {}:{}", ip, CONTROL_PORT),
+        Err(e) => eprintln!("Failed to get local IP address: {}", e),
+    }
+
     // Blocks on the main thread until the UI is closed.
     amp_ui::run(state);
 }

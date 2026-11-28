@@ -42,6 +42,7 @@ impl SnapcastConnection {
             handle.stop().await;
             return Err(error);
         }
+        println!("Connection to Snapcast server established successfully.");
         Ok(handle)
     }
 
@@ -59,6 +60,18 @@ impl SnapcastConnection {
 
         let task = tokio::spawn(async move {
             let _ = client.run().await;
+        });
+
+        let watch_stream = Arc::clone(&stream);
+        let watch_tx = command_tx.clone();
+        tokio::spawn(async move {
+            while !watch_tx.is_closed() {
+                if watch_stream.lock().expect("stream lock poisoned").chunk_count() > 0 {
+                    println!("Receiving audio packets");
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
         });
 
         (

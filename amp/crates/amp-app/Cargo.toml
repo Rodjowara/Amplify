@@ -8,3 +8,4 @@ amp-ui = { path = "../amp-ui" }
 amp-control = { path = "../amp-control" }
 amp-core = {path = "../amp-core"}
 amp-audio = {path = "../amp-audio"}
+local-ip-address = "0.6"

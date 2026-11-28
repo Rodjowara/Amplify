@@ -56,6 +56,9 @@ impl AmpService for MaestroService {
                     host: req.snapcast_host,
                     port,
                 });
+
+                println!("Connection successful!");
+
                 HandshakeResponse { success: true, error: None }
             }
             Err(e) => {
