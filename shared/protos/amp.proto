@@ -6,7 +6,7 @@ option csharp_namespace = "Amplify.Amp";
 
 service AmpService {
 	rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
-	rpc Monitor(MonitorRequest) returns (stream MonitorResponse);
+	rpc MonitorState(MonitorStateRequest) returns (stream MonitorStateResponse);
 }
 
 message HandshakeRequest
