@@ -104,7 +104,7 @@ NOTE: these are the steps for the Linux PC. For Windows and Mac, either wait unt
 To build the Amp project, use these commands:
 ```bash
 cd <repo-root>
-grep -n -A15 "members" Cargo.toml
+grep -n -A15 "members" amp/Cargo.toml
 ```
 
 The build commands:

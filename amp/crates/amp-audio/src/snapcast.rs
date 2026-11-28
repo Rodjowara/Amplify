@@ -72,6 +72,7 @@ pub struct SnapcastConnection {
     stream: Arc<Mutex<Stream>>,
     resampler: Resampler,
     task: JoinHandle<()>,
+    callbacks: u64,
 }
 
 impl SnapcastConnection {
@@ -137,6 +138,7 @@ impl SnapcastConnection {
                 stream,
                 resampler: Resampler::default(),
                 task,
+                callbacks: 0,
             },
             event_rx,
         )
@@ -166,6 +168,12 @@ impl SnapcastConnection {
             return;
         }
 
+        if self.callbacks % 200 == 0 {
+            eprintln!(
+                "[Snapcast] stream {stream_rate} Hz/{stream_channels} ch, output {output_sample_rate} Hz/{output_channels} ch, dac_latency_usec={dac_latency_usec}, server_offset_usec={server_offset_usec}"
+            );
+        }
+        self.callbacks += 1;
         let encoding = stream.encoding();
         let bits = format.bits();
 
