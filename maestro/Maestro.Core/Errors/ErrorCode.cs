@@ -4,11 +4,11 @@ public enum ErrorCode
 {
     Unknown,
 
-    InvalidAmpAddress,
-    AmpAlreadyAdded,
-    AmpUnreachable,
-    AmpTimeout,
-    AmpRejectedRequest,
+    AMP_InvalidAddress,
+    AMP_AlreadyAdded,
+    AMP_Unexpected,
+    AMP_Unreachable,
+    AMP_Timeout,
 
     FileNotFound,
     FfmpegNotFound,
@@ -16,4 +16,7 @@ public enum ErrorCode
     StreamInterrupted,
 
     SnapserverStartFailed,
+
+    SPOTIFY_NotConnected,
+    SPOTIFY_Unexpected,
 }

@@ -27,6 +27,11 @@ ApplicationWindow {
         toolTipText: Theme.colors.text
     }
 
+    QtSynchronizationContext {
+        function executeLate() { execute() }
+        onPendingChanged: Qt.callLater(executeLate)
+    }
+
     DummyViewModel {
         id: dummy
     }
@@ -41,6 +46,10 @@ ApplicationWindow {
 
     ErrorViewModel {
         id: errorModel
+    }
+
+    SpotifyViewModel {
+        id: spotify
     }
 
     ColumnLayout {
@@ -60,7 +69,7 @@ ApplicationWindow {
 
             // One page per nav.currentPage
             StackLayout {
-                currentIndex: ["playlist", "settings", "tuning"].indexOf(nav.currentPage)
+                currentIndex: ["playlist", "settings", "tuning", "debug"].indexOf(nav.currentPage)
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -70,6 +79,7 @@ ApplicationWindow {
                 }
                 PlaceholderPage { title: qsTr("Settings") }
                 PlaceholderPage { title: qsTr("Tuning") + ": " + nav.selectedAmpIp }
+                DebugPage { spotify: spotify }
             }
         }
 

@@ -30,10 +30,14 @@ jobs:
     - name: Put qmake on PATH
       run: echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
     - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
     - uses: Swatinem/rust-cache@v2
       with:
         workspaces: amp
     - name: Build
       run: cargo build --verbose
+    - name: Clippy
+      run: cargo clippy --all-targets -- -D warnings
     - name: Test
       run: cargo test --verbose

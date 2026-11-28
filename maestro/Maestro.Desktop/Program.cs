@@ -1,25 +1,29 @@
-using Maestro.Application.Models;
+using Maestro.Core.Models;
 using Maestro.Core.Errors;
 using Maestro.Core.Interfaces;
 using Maestro.Core.Services;
 using Maestro.Desktop;
-using Maestro.Infrastructure.Services.Playback;
+using Maestro.Desktop.ViewModels;
+using Maestro.Core.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
 using Qt.Quick;
-
-var localStream = new SnapcastStreamOptions();
-
-// SNAPCAST PROCESS
-await using var snapserver = new SnapcastBootstrap(localStream);
 
 // SERVICES
 var services = new ServiceCollection();
 services.AddSingleton<ErrorReporter>();
 services.AddSingleton<IAmpManager, AmpManager>();
-services.AddSingleton(localStream);
+// TODO(#136): replace the dummy with the amp's status over gRPC; until then every added amp shows as online.
+services.AddSingleton<IAmpStatusChecker, DummyAmpStatusChecker>();
+
 services.AddSingleton<LocalFileSource>();
 
+services.AddSingleton<SnapcastStreamOptions>();
+services.AddSingleton<SnapcastBootstrap>();
+
+services.AddSingleton<SpotifyConnection>();
+
 await using var provider = services.BuildServiceProvider();
+MaestroServices.ServiceProvider = provider;
 
 var errors = provider.GetRequiredService<ErrorReporter>();
 TaskScheduler.UnobservedTaskException += (_, args) =>
@@ -27,16 +31,6 @@ TaskScheduler.UnobservedTaskException += (_, args) =>
     errors.ShowErrorPage(args.Exception);
     args.SetObserved();
 };
-ErrorViewModel.Reporter = errors;
-
-// TEST
-var manager = provider.GetRequiredService<IAmpManager>();
-manager.Add("http://127.0.0.1:50051");
-DummyViewModel.Manager = manager;
-DummyViewModel.Errors = errors;
-
-PlaybackViewModel.Source = provider.GetRequiredService<LocalFileSource>();
-PlaybackViewModel.Errors = errors;
 
 // QML
 Qml.LoadFromRootModule("Main");
@@ -47,7 +41,7 @@ async Task StartSnapserverAsync()
 {
     try
     {
-        await snapserver.ExecuteAsync();
+        await provider.GetRequiredService<SnapcastBootstrap>().ExecuteAsync();
     }
     catch (Exception exception)
     {

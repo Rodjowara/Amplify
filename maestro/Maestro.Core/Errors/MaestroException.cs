@@ -7,9 +7,7 @@ public class MaestroException : Exception
     public ErrorCode Code { get; }
     public IReadOnlyDictionary<string, string> Arguments { get; }
 
-    public override string Message =>
-        $"{Code}: {string.Join(", ", Arguments.Select(argument => $"{argument.Key}={argument.Value}"))}";
-
+    #region Constructors
     public MaestroException(ErrorCode code, object? arguments = null, Exception? inner = null)
         : base(null, inner)
     {
@@ -18,20 +16,17 @@ public class MaestroException : Exception
     }
 
     public MaestroException(Exception exception)
-        : this(ErrorCode.Unknown, new { message = exception.Message }, exception)
-    {
-    }
+        : this(ErrorCode.Unknown, new { message = exception.Message }, exception) { }
 
-    public MaestroException(RpcException exception, object? arguments)
-        : this(ToErrorCode(exception.StatusCode), arguments, exception)
-    {
-    }
+    public MaestroException(RpcException exception, object? arguments = null)
+        : this(ToErrorCode(exception.StatusCode), arguments, exception) { }
+    #endregion
 
+    #region Utils
     private static ErrorCode ToErrorCode(StatusCode status) => status switch
     {
-        StatusCode.Unavailable => ErrorCode.AmpUnreachable,
-        StatusCode.DeadlineExceeded => ErrorCode.AmpTimeout,
-        StatusCode.InvalidArgument or StatusCode.FailedPrecondition => ErrorCode.AmpRejectedRequest,
+        StatusCode.Unavailable => ErrorCode.AMP_Unreachable,
+        StatusCode.DeadlineExceeded => ErrorCode.AMP_Timeout,
         _ => ErrorCode.Unknown,
     };
 
@@ -39,4 +34,5 @@ public class MaestroException : Exception
         arguments?.GetType().GetProperties()
             .ToDictionary(property => property.Name, property => property.GetValue(arguments)?.ToString() ?? "")
         ?? [];
+    #endregion
 }

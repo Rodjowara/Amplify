@@ -9,8 +9,8 @@ MaestroDialog {
     required property var vm
 
     title: qsTr("Add amp")
-    acceptText: qsTr("Add")
-    acceptEnabled: nameField.text.trim() !== "" && ipField.text.trim() !== ""
+    acceptText: vm.isAddingAmp ? qsTr("Connecting…") : qsTr("Add")
+    acceptEnabled: !vm.isAddingAmp && nameField.text.trim() !== "" && ipField.text.trim() !== ""
     errorText: vm.addAmpErrorCode === "" ? "" : ErrorMessages.text(vm.addAmpErrorCode, name => vm.addAmpErrorArgument(name))
 
     onAboutToShow: {
@@ -19,7 +19,15 @@ MaestroDialog {
         vm.clearAddAmpError()
     }
     onOpened: nameField.forceActiveFocus()
-    onAcceptClicked: if (vm.addAmp(nameField.text, ipField.text)) accept()
+    onAcceptClicked: vm.addAmp(nameField.text, ipField.text)
+
+    Connections {
+        target: root.vm
+        function onIsAddingAmpChanged() {
+            if (root.opened && !root.vm.isAddingAmp && root.vm.addAmpErrorCode === "")
+                root.accept()
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent

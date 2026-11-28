@@ -12,8 +12,17 @@ Rectangle {
 
     signal addAmpRequested()
 
+    readonly property int statusRefreshInterval: 2000
+
     implicitWidth: 240
     color: Theme.colors.surface
+
+    Timer {
+        interval: root.statusRefreshInterval
+        running: true
+        repeat: true
+        onTriggered: root.vm.refreshStatus()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -42,6 +51,14 @@ Rectangle {
             active: root.vm.currentPage === "settings"
             Layout.fillWidth: true
             onClicked: root.vm.navigate("settings")
+        }
+
+        AmplifyNavButton {
+            text: qsTr("Debug")
+            icon.source: Icons.settings
+            active: root.vm.currentPage === "debug"
+            Layout.fillWidth: true
+            onClicked: root.vm.navigate("debug")
         }
 
         RowLayout {

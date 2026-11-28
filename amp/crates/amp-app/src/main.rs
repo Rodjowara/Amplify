@@ -1,10 +1,9 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
+use amp_core::CONTROL_PORT;
 use amp_core::state::SharedState;
 use amp_audio::output::start_output;
 use amp_audio::output::PlaybackSource;
-
-const CONTROL_PORT: u16 = 50051;
 
 fn main() {
     let state = SharedState::default();

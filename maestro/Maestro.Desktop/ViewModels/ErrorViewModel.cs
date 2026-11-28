@@ -3,23 +3,21 @@ using Qt.Quick;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Maestro.Desktop;
+namespace Maestro.Desktop.ViewModels;
 
 [QmlElement]
-public class ErrorViewModel : INotifyPropertyChanged
+public class ErrorViewModel : BaseViewModel, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
-
-    [Qt.Ignore]
-    public static ErrorReporter Reporter { get; set; } = null!;
 
     private MaestroException? _bannerError;
     private MaestroException? _pageError;
 
     public ErrorViewModel()
     {
-        Reporter.Reported += error => { _bannerError = error; Refresh(); };
-        Reporter.ErrorPageRequested += error => { _pageError = error; Refresh(); };
+        var reporter = GetRequiredService<ErrorReporter>();
+        reporter.Reported += error => { _bannerError = error; Refresh(); };
+        reporter.ErrorPageRequested += error => { _pageError = error; Refresh(); };
     }
 
     private MaestroException? ShownError => _pageError ?? _bannerError;

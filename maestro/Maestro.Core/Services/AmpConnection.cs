@@ -3,31 +3,39 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using Maestro.Core.Errors;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
 namespace Maestro.Core.Services;
+
+public class AmpConnectionOptions
+{
+    public string Name { get; init; } = null!;
+
+    public Uri ConnectionString { get; init; } = null!;
+    public string Host => ConnectionString.Host;
+    public int Port => ConnectionString.Port;
+
+    public uint SnapcastPort { get; set; }
+}
 
 public class AmpConnection : IDisposable
 {
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(3);
 
-    public string Host { get; }
-    public int Port { get; }
-    private string Address => $"{Host}:{Port}";
+    private readonly AmpConnectionOptions _options;
+    public Guid Id { get; } = Guid.NewGuid();
+    public string Name => _options.Name;
+    public string Host => _options.Host;
 
     private readonly GrpcChannel _channel;
     private readonly AmpService.AmpServiceClient _client;
 
-    public AmpConnection(string connectionString)
+    public AmpConnection(AmpConnectionOptions options)
     {
-        if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            throw new MaestroException(ErrorCode.InvalidAmpAddress, new { address = connectionString });
+        _options = options;
 
-        Host = uri.Host;
-        Port = uri.Port;
-
-        _channel = GrpcChannel.ForAddress(connectionString, new GrpcChannelOptions
+        _channel = GrpcChannel.ForAddress(_options.ConnectionString, new GrpcChannelOptions
         {
             // TODO ?
         });
@@ -40,10 +48,10 @@ public class AmpConnection : IDisposable
     public async Task HandshakeAsync()
     {
         // TODO: IOptions?
-        var request = new HandshakeRequest()
+        var request = new HandshakeRequest
         {
             SnapcastHost = GetLocalIpAddress(),
-            SnapcastPort = 1704
+            SnapcastPort = _options.SnapcastPort,
         };
 
         HandshakeResponse response;
@@ -53,29 +61,31 @@ public class AmpConnection : IDisposable
         }
         catch (RpcException exception)
         {
-            throw new MaestroException(exception, new { amp = Address, message = exception.Status.Detail });
+            throw new MaestroException(exception, new { amp = _options.Host });
         }
 
         if (!response.Success)
-            throw new MaestroException(ErrorCode.AmpRejectedRequest, new { amp = Address, message = response.Error });
+            throw new MaestroException(ErrorCode.AMP_Unexpected, new { amp = _options.Host, message = response.Error });
     }
 
     private string GetLocalIpAddress()
     {
-        using var socket = new Socket(SocketType.Dgram, ProtocolType.Udp);
-        try
-        {
-            socket.Connect(Host, Port);
-        }
-        catch (SocketException exception)
-        {
-            throw new MaestroException(ErrorCode.AmpUnreachable, new { amp = Address, message = exception.Message }, exception);
-        }
+        var address = NetworkInterface.GetAllNetworkInterfaces()
+          .Where(x => x.OperationalStatus == OperationalStatus.Up)
+          .Where(x => x.NetworkInterfaceType is NetworkInterfaceType.Ethernet or NetworkInterfaceType.Wireless80211)
+          .Select(x => x.GetIPProperties())
+          .OrderByDescending(x => x.GatewayAddresses.Any(y => !y.Address.Equals(IPAddress.Any)))
+          .SelectMany(x => x.UnicastAddresses)
+          .Select(x => x.Address)
+          .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+          .Where(x => !IPAddress.IsLoopback(x))
+          .Where(x => !x.ToString().StartsWith("169.254"))
+          .FirstOrDefault();
 
-        var address = ((IPEndPoint)socket.LocalEndPoint!).Address;
+        if (address is null) return "127.0.0.1";
 
         return address.IsIPv4MappedToIPv6
-            ? address.MapToIPv4().ToString()
-            : address.ToString();
+          ? address.MapToIPv4().ToString()
+          : address.ToString();
     }
 }
