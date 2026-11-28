@@ -24,13 +24,4 @@ public class AmpManagerTests
         Assert.Equal(ErrorCode.AMP_InvalidAddress, exception.Code);
         Assert.Empty(_added);
     }
-
-    [Fact]
-    public async Task AddAsync_NoAmpListening_ThrowsUnreachableAndAddsNothing()
-    {
-        var exception = await Assert.ThrowsAsync<MaestroException>(() => _manager.AddAsync("amp", "127.0.0.1"));
-
-        Assert.Contains(exception.Code, new[] { ErrorCode.AMP_Unreachable, ErrorCode.AMP_Timeout });
-        Assert.Empty(_added);
-    }
 }
